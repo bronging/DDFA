@@ -28,6 +28,14 @@ class Predictor(nn.Module):
         h = self.linears[self.num_layers - 1](h)
         return h
     
+from sklearn.decomposition import PCA
+def pca_compression(seq,k):
+    pca = PCA(n_components=k)
+    seq = pca.fit_transform(seq)
+    
+    print(pca.explained_variance_ratio_.sum())
+    return seq
+
 class Sampler:
     def __init__(self, sample_size, if_rand, sampling='random'):
         self.sample_size = sample_size
@@ -45,6 +53,8 @@ class Sampler:
             if self.fixed_indices is None:
                 if self.sampling == 'random': 
                     self.fixed_indices = torch.randperm(x.shape[0])[:self.sample_size]
+                elif self.sampling == 'pca': 
+                    self.fixed_indices = torch.FloatTensor(pca_compression(x.T.cpu(),k=self.sample_size)).T.cuda()
                 elif self.sampling == 'feat_norm': 
                     norms = torch.norm(x, p=2, dim=1)  # ℓ2-norm
                     self.fixed_indices = torch.topk(norms, k=self.sample_size).indices
@@ -69,12 +79,14 @@ class Sampler:
                 # print('New sampling!')
             idx = self.fixed_indices
 
-        if self.sampling == 'random_readout': 
+        if self.sampling == 'random_readout' or self.sampling == 'pca': 
             return self.fixed_indices
-            
-        return x[idx, :]
+
+        return x[self.fixed_indices, :]
 
        
     def reset_indices(self):
         self.fixed_indices = None 
 
+    def get_indices(self): 
+        return self.fixed_indices

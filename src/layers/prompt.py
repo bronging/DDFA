@@ -130,14 +130,14 @@ class weighted_prompt(nn.Module):
         self.reset_parameters()
 
         # Attention 방식 
-        # dim = 1433
-        # k = 50 
-        # self.num_prompts = weightednum
-        # self.dim = dim
-        # self.k = k
+        dim = 3703
+        k = 50 
+        self.num_prompts = weightednum
+        self.dim = dim
+        self.k = k
 
-        # # 각 basis [dim, k] → scalar 로 projection할 weight
-        # self.attn_proj = nn.Parameter(torch.randn(weightednum, dim, k))  # a_j
+        # 각 basis [dim, k] → scalar 로 projection할 weight
+        self.attn_proj = nn.Parameter(torch.randn(weightednum, dim, k))  # a_j
 
     def reset_parameters(self):
         self.weight.data.uniform_(0, 1)
@@ -160,25 +160,25 @@ class weighted_prompt(nn.Module):
     #     return out
 
     # 빠른 버전 
-    # def forward(self, graph_embedding):
-    #     # graph_embedding: [n, d, k], self.weight: [1, n]
-    #     assert graph_embedding.shape[0] == self.weight.shape[1], 'length must equal'
+    def forward(self, graph_embedding):
+        # graph_embedding: [n, d, k], self.weight: [1, n]
+        assert graph_embedding.shape[0] == self.weight.shape[1], 'length must equal'
         
-    #     # reshape weight to [n, 1, 1] for broadcasting
-    #     weighted = self.weight.view(-1, 1, 1) * graph_embedding  # [n, d, k]
-    #     ans = weighted.sum(dim=0)  # [d, k]
-    #     print('ans 150', ans.shape)
-    #     return ans
+        # reshape weight to [n, 1, 1] for broadcasting
+        weighted = self.weight.view(-1, 1, 1) * graph_embedding  # [n, d, k]
+        ans = weighted.sum(dim=0)  # [d, k]
+        # print('ans 150', ans.shape)
+        return ans
 
     # 오리지널 
-    def forward(self, graph_embedding):
-        # print("weight",self.weight)
-        # graph_embedding=torch.mm(self.weight, graph_embedding)
-        assert len(graph_embedding) == self.weight.shape[1], 'length must equal'
-        ans = torch.zeros_like(graph_embedding[0])
-        for i in range(len(graph_embedding)):
-            ans += self.weight[0][i] * graph_embedding[i]
-        return ans
+    # def forward(self, graph_embedding):
+    #     # print("weight",self.weight)
+    #     # graph_embedding=torch.mm(self.weight, graph_embedding)
+    #     assert len(graph_embedding) == self.weight.shape[1], 'length must equal'
+    #     ans = torch.zeros_like(graph_embedding[0])
+    #     for i in range(len(graph_embedding)):
+    #         ans += self.weight[0][i] * graph_embedding[i]
+    #     return ans
 
     
 class combineprompt(nn.Module):
@@ -234,7 +234,21 @@ class composedNet(nn.Module):
             target[key] = self.prompt(para_key)
 
         return target
-
+    
+class composedW1MLP(nn.Module):
+    def __init__(self, length):
+        super(composedW1MLP, self).__init__()
+        #self.texttoken = torch.cat(texttokens,dim=0)
+        self.length = length
+        self.prompt = weighted_prompt( length ).cuda()
+        
+    def forward(self, seq, src_mlp):
+        # print(seq.shape)
+        outputs = [dim(seq) for dim in src_mlp]
+        stacked = torch.stack(outputs, dim=0)
+        composed_dim = self.prompt(stacked) 
+        return composed_dim
+    
 
 def clone_dim_pretexts(dim_pretexts):
     cloned = nn.ModuleList()
@@ -263,27 +277,34 @@ def clone_dim_pretexts(dim_pretexts):
     return cloned
 
 class composedBasisNode(nn.Module):
-    def __init__(self, in_channels, p_num, dim_pretexts):
+    def __init__(self, in_channels, p_num, basis_vectors=None):
         super(composedBasisNode, self).__init__()
 
         # 랜덤 초기화 - GPF-plus
-        # self.p_list = nn.Parameter(torch.Tensor(p_num, in_channels)) # feat dim -> k basis vector에 대한 가중치 
-        # basis_tensor = torch.stack(dim_pretexts).mean(dim=0)
-        basis_vectors = [basis.mean(dim=0) for basis in dim_pretexts] 
-        basis_vectors = torch.stack(basis_vectors, dim=0) # [6, 50]
-        # print(f'basis vector: {basis_vectors.shape}')
+        if basis_vectors == None: 
+            # self.p_list = nn.Parameter(torch.empty(p_num, in_channels))  
+            # nn.init.xavier_uniform_(self.p_list)   # 랜덤 초기화
+            rand_init = torch.empty(p_num, in_channels)
+            nn.init.xavier_uniform_(rand_init)     # Xavier 초기화
+            self.register_buffer('p_list', rand_init)
+        else: 
+            # basis mean vector
+            basis_vectors = torch.stack(basis_vectors, dim=0) # [6, 50]
+            # domain token 
+            # basis_vectors = torch.stack(basis_vectors, dim=1).squeeze(0) # [6, 50]
+            # print(f'{basis_vectors.shape}')
 
-        # basis 학습 X
-        self.register_buffer('p_list', basis_vectors)
+            # basis 학습 X
+            self.register_buffer('p_list', basis_vectors)
 
-        # basis 학습 O
-        # self.p_list = nn.Parameter(basis_vectors.clone(), requires_grad=True)
+            # basis 학습 O
+            # self.p_list = nn.Parameter(basis_vectors.clone(), requires_grad=True)
 
         self.a = nn.Linear(in_channels, p_num)
         self.reset_parameters()
 
     def reset_parameters(self):
-        #glorot(self.p_list) # 무작위 초기화 
+        # glorot(self.p_list) # 무작위 초기화 
         self.a.reset_parameters()
 
     def forward(self, x):
@@ -291,7 +312,8 @@ class composedBasisNode(nn.Module):
         weight = F.softmax(score, dim=1)
         p = weight.mm(self.p_list)
 
-        return p
+        # return x * p
+        return x + p
     
 import torch.nn.functional as F
 class composedFUG(nn.Module):
@@ -362,12 +384,18 @@ class composedFUG(nn.Module):
             # composed_dim = F.normalize(seq @ composed_dim)
         
         # Ti 가중합 w/ [1,2] balance token 
-        elif ablation == 'wn': # Ti weighted sum, No balance 
-            outputs = [dim(sample) for dim in self.dim_pretexts]
+        elif ablation == 'wt': # Ti weighted sum, No balance 
+            outputs = [dim((domain_token*sample.T).T) for dim, domain_token in zip(self.dim_pretexts, self.balance_token)]
             stacked = torch.stack(outputs, dim=0)
             composed_dim = self.prompt(stacked)
             composed_dim = F.normalize(seq @ composed_dim)
         
+        elif ablation == 'ww': # Ti weighted sum, No balance 
+            outputs = [dim(sample) for dim in self.dim_pretexts]
+            stacked = torch.stack(outputs, dim=0)
+            composed_dim = self.prompt(stacked)
+            composed_dim = F.normalize(seq @ composed_dim)
+
         # Ti 가중합 w/ [1,2] balance token 
         elif ablation == 'wb': # Ti weighted sum with balance 
             outputs = []
@@ -386,11 +414,13 @@ class composedFUG(nn.Module):
         # composed_dim = self.prompt(stacked)
         # composed_dim = F.normalize(seq @ composed_dim)
 
-        # Ti 가중합 
-        # outputs = [dim(sample) for dim in self.dim_pretexts]
-        # stacked = torch.stack(outputs, dim=0)
-        # composed_dim = self.prompt(stacked)
-        # composed_dim = F.normalize(seq @ composed_dim)
+        # Ti 가중합
+        elif ablation == 'wn':  
+            outputs = [dim(sample) for dim in self.dim_pretexts]
+            stacked = torch.stack(outputs, dim=0)
+            composed_dim = self.prompt(stacked)
+            composed_dim = F.normalize(seq @ composed_dim)
+
 
         # Ti 가중합  w/ [1,2] balance token 
         # outputs = []

@@ -1,0 +1,472 @@
+2025-09-11 05:12:30,887 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 05:12:30,887 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 05:12:30,887 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 0                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 05:12:30,887 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 05:12:30,887 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 05:12:30,887 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 05:12:30,887 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 05:12:30,887 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 05:12:30,887 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 05:12:30,887 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 05:12:55,926 - logging_.py[line:49] - INFO: 🟩 Function: train_fug_lp
+2025-09-11 05:28:15,194 - logging_.py[line:49] - INFO: best epoch: 924
+2025-09-11 05:28:15,194 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 05:28:15,194 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Cora ⭐🌼
+2025-09-11 05:28:15,521 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 05:28:15,528 - logging_.py[line:49] - INFO:     a = 0.0 (loss = xcent + a*de_loss!)
+2025-09-11 05:28:15,528 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 05:28:15,528 - logging_.py[line:49] - INFO: learning rate: 0.003
+2025-09-11 05:28:23,778 - logging_.py[line:49] - INFO: [0]57.00 ± 0.00
+2025-09-11 05:29:57,485 - logging_.py[line:49] - INFO: [10]49.55 ± 16.35
+2025-09-11 05:31:18,447 - logging_.py[line:49] - INFO: [20]49.10 ± 14.20
+2025-09-11 05:32:59,271 - logging_.py[line:49] - INFO: [30]51.13 ± 13.48
+2025-09-11 18:34:41,948 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 18:34:41,948 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 0                   | alpha = 1.0                   
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 18:34:41,948 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 1                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 18:34:41,948 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 18:34:41,948 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 18:34:41,948 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 18:34:41,948 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 18:34:41,948 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 18:34:41,949 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 18:34:41,949 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 18:35:07,251 - logging_.py[line:49] - INFO: 🟩 Function: train_fug_lp
+2025-09-11 18:51:43,888 - logging_.py[line:49] - INFO: best epoch: 978
+2025-09-11 18:51:43,888 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 18:51:43,888 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Citeseer ⭐🌼
+2025-09-11 18:51:44,354 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 18:51:44,361 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 18:51:44,361 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 18:51:44,361 - logging_.py[line:49] - INFO: learning rate: 0.02
+2025-09-11 18:51:44,404 - logging_.py[line:49] - INFO: [0]22.00 ± 0.00
+2025-09-11 18:51:47,969 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 18:51:47,969 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 0                   | alpha = 1.0                   
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 18:51:47,969 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 18:51:47,970 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 2                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 18:51:47,970 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 18:51:47,970 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 18:51:47,970 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 18:51:47,970 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 18:51:47,970 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 18:51:47,970 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 18:51:47,970 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 18:52:05,772 - logging_.py[line:49] - INFO: 🟩 Function: train_fug_lp
+2025-09-11 19:06:33,127 - logging_.py[line:49] - INFO: best epoch: 997
+2025-09-11 19:06:33,127 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 19:06:33,127 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Pubmed ⭐🌼
+2025-09-11 19:06:33,489 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 19:06:33,494 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 19:06:33,495 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 19:06:33,495 - logging_.py[line:49] - INFO: learning rate: 0.001
+2025-09-11 19:06:33,542 - logging_.py[line:49] - INFO: [0]25.00 ± 0.00
+2025-09-11 19:06:36,902 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 19:06:36,902 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 0                   | alpha = 1.0                   
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 19:06:36,902 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 3                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 19:06:36,902 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 19:06:36,902 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 19:06:36,903 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 19:06:36,903 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 19:06:36,903 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 19:06:36,903 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 19:06:36,903 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 19:07:00,716 - logging_.py[line:49] - INFO: 🟩 Function: train_fug_lp
+2025-09-11 19:22:34,603 - logging_.py[line:49] - INFO: best epoch: 974
+2025-09-11 19:22:34,604 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 19:22:34,604 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Photo ⭐🌼
+2025-09-11 19:22:34,971 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 19:22:34,977 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 19:22:34,977 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 19:22:34,977 - logging_.py[line:49] - INFO: learning rate: 0.0001
+2025-09-11 19:22:35,025 - logging_.py[line:49] - INFO: [0]23.00 ± 0.00
+2025-09-11 19:22:38,404 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 19:22:38,404 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 0                   | alpha = 1.0                   
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 19:22:38,404 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 4                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 19:22:38,404 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 19:22:38,405 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 19:22:38,405 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 19:22:38,405 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 19:22:38,405 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 19:22:38,405 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 19:22:38,405 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 19:22:59,328 - logging_.py[line:49] - INFO: 🟩 Function: train_fug_lp
+2025-09-11 19:37:31,234 - logging_.py[line:49] - INFO: best epoch: 997
+2025-09-11 19:37:31,234 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 19:37:31,234 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Computers ⭐🌼
+2025-09-11 19:37:31,638 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 19:37:31,644 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 19:37:31,644 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 19:37:31,644 - logging_.py[line:49] - INFO: learning rate: 0.0003
+2025-09-11 19:37:31,702 - logging_.py[line:49] - INFO: [0]8.00 ± 0.00
+2025-09-11 19:37:35,403 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 19:37:35,404 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 0                   | alpha = 1.0                   
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 19:37:35,404 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 5                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 19:37:35,404 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 19:37:35,404 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 19:37:35,404 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'LastFMAsia']
+2025-09-11 19:37:35,404 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 19:37:35,404 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 19:37:35,404 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 19:37:35,404 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 19:37:50,533 - logging_.py[line:49] - INFO: 🟩 Function: train_fug_lp
+2025-09-11 19:51:16,529 - logging_.py[line:49] - INFO: best epoch: 997
+2025-09-11 19:51:16,529 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 19:51:16,529 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ FacebookPagePage ⭐🌼
+2025-09-11 19:51:16,854 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 19:51:16,860 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 19:51:16,860 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 19:51:16,860 - logging_.py[line:49] - INFO: learning rate: 0.001
+2025-09-11 19:51:16,911 - logging_.py[line:49] - INFO: [0]19.00 ± 0.00
+2025-09-11 19:51:20,414 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 19:51:20,415 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 0                   | alpha = 1.0                   
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 19:51:20,415 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 6                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 19:51:20,415 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 19:51:20,415 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 19:51:20,415 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage']
+2025-09-11 19:51:20,415 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 19:51:20,415 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 19:51:20,415 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 19:51:20,415 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 19:51:44,534 - logging_.py[line:49] - INFO: 🟩 Function: train_fug_lp
+2025-09-11 20:06:41,499 - logging_.py[line:49] - INFO: best epoch: 983
+2025-09-11 20:06:41,500 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 20:06:41,500 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ LastFMAsia ⭐🌼
+2025-09-11 20:06:41,778 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 20:06:41,784 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 20:06:41,784 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 20:06:41,784 - logging_.py[line:49] - INFO: learning rate: 0.002
+2025-09-11 20:06:41,832 - logging_.py[line:49] - INFO: [0]16.00 ± 0.00
+2025-09-11 20:06:45,311 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 20:06:45,311 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 20:06:45,311 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 1                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 20:06:45,311 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 20:06:45,311 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 20:06:45,312 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 20:06:45,312 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 20:06:45,312 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 20:06:45,312 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 20:06:45,312 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 20:06:45,443 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 20:06:45,443 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Citeseer ⭐🌼
+2025-09-11 20:06:46,063 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 20:06:46,097 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 20:06:46,098 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 20:06:46,098 - logging_.py[line:49] - INFO: learning rate: 0.02
+2025-09-11 20:06:55,402 - logging_.py[line:49] - INFO: [0]51.00 ± 0.00
+2025-09-11 20:08:36,970 - logging_.py[line:49] - INFO: [10]35.18 ± 10.58
+2025-09-11 20:10:17,434 - logging_.py[line:49] - INFO: [20]36.33 ± 9.87
+2025-09-11 20:12:04,367 - logging_.py[line:49] - INFO: [30]36.74 ± 10.00
+2025-09-11 20:13:50,900 - logging_.py[line:49] - INFO: [40]36.37 ± 9.67
+2025-09-11 20:15:35,573 - logging_.py[line:49] - INFO: [50]36.75 ± 9.48
+2025-09-11 20:17:20,169 - logging_.py[line:49] - INFO: [60]36.66 ± 9.39
+2025-09-11 20:18:56,020 - logging_.py[line:49] - INFO: [70]37.30 ± 9.22
+2025-09-11 20:20:29,955 - logging_.py[line:49] - INFO: [80]37.21 ± 9.25
+2025-09-11 20:22:13,599 - logging_.py[line:49] - INFO: [90]37.07 ± 8.91
+2025-09-11 20:23:48,398 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+2025-09-11 20:23:48,398 - logging_.py[line:49] - INFO: [1-shot]
+2025-09-11 20:23:48,398 - logging_.py[line:49] - INFO: Acc: 36.59 ± 8.94
+2025-09-11 20:23:48,398 - logging_.py[line:49] - INFO: Macro F1: 32.28 ± 8.33, Micro F1: 36.59 ± 8.94
+2025-09-11 20:23:48,398 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+
+2025-09-11 20:23:52,420 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 20:23:52,420 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 20:23:52,420 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-11 20:23:52,420 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 20:23:52,420 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 20:23:52,420 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 20:23:52,420 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 20:23:52,420 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 20:23:52,421 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 20:23:52,421 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 20:23:52,421 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 2                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 20:23:52,421 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 20:23:52,421 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 20:23:52,421 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 20:23:52,421 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 20:23:52,421 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 20:23:52,421 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 20:23:52,421 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 20:23:52,554 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 20:23:52,554 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Pubmed ⭐🌼
+2025-09-11 20:23:53,046 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 20:23:53,081 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 20:23:53,081 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 20:23:53,081 - logging_.py[line:49] - INFO: learning rate: 0.001
+2025-09-11 20:24:04,916 - logging_.py[line:49] - INFO: [0]47.00 ± 0.00
+2025-09-11 20:25:47,151 - logging_.py[line:49] - INFO: [10]53.55 ± 6.58
+2025-09-11 20:27:56,611 - logging_.py[line:49] - INFO: [20]54.95 ± 6.70
+2025-09-11 20:30:07,088 - logging_.py[line:49] - INFO: [30]52.81 ± 8.30
+2025-09-11 20:32:07,084 - logging_.py[line:49] - INFO: [40]52.71 ± 8.37
+2025-09-11 20:34:16,589 - logging_.py[line:49] - INFO: [50]52.00 ± 7.84
+2025-09-11 20:36:27,780 - logging_.py[line:49] - INFO: [60]51.77 ± 7.82
+2025-09-11 20:38:33,265 - logging_.py[line:49] - INFO: [70]51.31 ± 7.95
+2025-09-11 20:40:42,149 - logging_.py[line:49] - INFO: [80]51.56 ± 8.06
+2025-09-11 20:42:50,410 - logging_.py[line:49] - INFO: [90]51.80 ± 8.00
+2025-09-11 20:44:46,220 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+2025-09-11 20:44:46,220 - logging_.py[line:49] - INFO: [1-shot]
+2025-09-11 20:44:46,220 - logging_.py[line:49] - INFO: Acc: 51.57 ± 8.21
+2025-09-11 20:44:46,220 - logging_.py[line:49] - INFO: Macro F1: 49.70 ± 10.16, Micro F1: 51.57 ± 8.21
+2025-09-11 20:44:46,220 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+
+2025-09-11 20:44:50,338 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 20:44:50,338 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 20:44:50,338 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 3                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 20:44:50,338 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 20:44:50,339 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 20:44:50,339 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 20:44:50,339 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 20:44:50,339 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 20:44:50,339 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 20:44:50,339 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 20:44:50,472 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 20:44:50,472 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Photo ⭐🌼
+2025-09-11 20:44:50,968 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 20:44:51,003 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 20:44:51,003 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 20:44:51,003 - logging_.py[line:49] - INFO: learning rate: 0.0001
+2025-09-11 20:45:06,713 - logging_.py[line:49] - INFO: [0]60.00 ± 0.00
+2025-09-11 20:47:41,271 - logging_.py[line:49] - INFO: [10]60.91 ± 14.04
+2025-09-11 20:50:22,473 - logging_.py[line:49] - INFO: [20]59.95 ± 12.58
+2025-09-11 20:53:07,558 - logging_.py[line:49] - INFO: [30]61.19 ± 11.46
+2025-09-11 20:55:52,171 - logging_.py[line:49] - INFO: [40]61.27 ± 11.03
+2025-09-11 20:58:36,656 - logging_.py[line:49] - INFO: [50]61.71 ± 11.56
+2025-09-11 21:01:20,097 - logging_.py[line:49] - INFO: [60]61.23 ± 11.35
+2025-09-11 21:04:04,209 - logging_.py[line:49] - INFO: [70]61.54 ± 11.20
+2025-09-11 21:06:48,419 - logging_.py[line:49] - INFO: [80]60.65 ± 11.59
+2025-09-11 21:09:33,565 - logging_.py[line:49] - INFO: [90]60.77 ± 11.57
+2025-09-11 21:12:01,875 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+2025-09-11 21:12:01,876 - logging_.py[line:49] - INFO: [1-shot]
+2025-09-11 21:12:01,876 - logging_.py[line:49] - INFO: Acc: 60.57 ± 11.55
+2025-09-11 21:12:01,876 - logging_.py[line:49] - INFO: Macro F1: 59.33 ± 10.89, Micro F1: 60.57 ± 11.55
+2025-09-11 21:12:01,876 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+
+2025-09-11 21:12:05,882 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 21:12:05,882 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 21:12:05,882 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 4                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 21:12:05,882 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 21:12:05,882 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 21:12:05,882 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'FacebookPagePage', 'LastFMAsia']
+2025-09-11 21:12:05,882 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 21:12:05,882 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 21:12:05,882 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 21:12:05,882 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 21:12:06,014 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 21:12:06,014 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Computers ⭐🌼
+2025-09-11 21:12:06,578 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 21:12:06,613 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 21:12:06,613 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 21:12:06,613 - logging_.py[line:49] - INFO: learning rate: 0.0003
+2025-09-11 21:12:27,223 - logging_.py[line:49] - INFO: [0]38.00 ± 0.00
+2025-09-11 21:16:03,662 - logging_.py[line:49] - INFO: [10]47.82 ± 12.90
+2025-09-11 21:19:38,841 - logging_.py[line:49] - INFO: [20]48.76 ± 11.69
+2025-09-11 21:22:41,445 - logging_.py[line:49] - INFO: [30]47.94 ± 10.79
+2025-09-11 21:26:09,401 - logging_.py[line:49] - INFO: [40]47.80 ± 10.83
+2025-09-11 21:29:26,578 - logging_.py[line:49] - INFO: [50]47.65 ± 10.77
+2025-09-11 21:33:02,686 - logging_.py[line:49] - INFO: [60]47.02 ± 11.02
+2025-09-11 21:36:58,152 - logging_.py[line:49] - INFO: [70]46.89 ± 11.30
+2025-09-11 21:40:39,599 - logging_.py[line:49] - INFO: [80]47.80 ± 11.38
+2025-09-11 21:44:13,929 - logging_.py[line:49] - INFO: [90]47.67 ± 11.61
+2025-09-11 21:47:12,253 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+2025-09-11 21:47:12,253 - logging_.py[line:49] - INFO: [1-shot]
+2025-09-11 21:47:12,253 - logging_.py[line:49] - INFO: Acc: 48.69 ± 11.75
+2025-09-11 21:47:12,253 - logging_.py[line:49] - INFO: Macro F1: 41.80 ± 9.19, Micro F1: 48.69 ± 11.75
+2025-09-11 21:47:12,253 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+
+2025-09-11 21:47:16,235 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 21:47:16,235 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 21:47:16,235 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 5                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 21:47:16,235 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 21:47:16,235 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 21:47:16,235 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'LastFMAsia']
+2025-09-11 21:47:16,235 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 21:47:16,235 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 21:47:16,235 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 21:47:16,235 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 21:47:16,362 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 21:47:16,363 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ FacebookPagePage ⭐🌼
+2025-09-11 21:47:16,803 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 21:47:16,836 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 21:47:16,836 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 21:47:16,836 - logging_.py[line:49] - INFO: learning rate: 0.001
+2025-09-11 21:47:37,284 - logging_.py[line:49] - INFO: [0]38.00 ± 0.00
+2025-09-11 21:50:43,183 - logging_.py[line:49] - INFO: [10]47.36 ± 7.75
+2025-09-11 21:53:37,814 - logging_.py[line:49] - INFO: [20]49.52 ± 9.24
+2025-09-11 21:57:02,211 - logging_.py[line:49] - INFO: [30]49.29 ± 8.85
+2025-09-11 22:00:33,475 - logging_.py[line:49] - INFO: [40]49.51 ± 9.31
+2025-09-11 22:04:01,330 - logging_.py[line:49] - INFO: [50]49.80 ± 9.62
+2025-09-11 22:07:31,240 - logging_.py[line:49] - INFO: [60]49.36 ± 10.34
+2025-09-11 22:10:55,694 - logging_.py[line:49] - INFO: [70]49.30 ± 10.38
+2025-09-11 22:14:14,976 - logging_.py[line:49] - INFO: [80]49.02 ± 10.13
+2025-09-11 22:17:42,589 - logging_.py[line:49] - INFO: [90]48.40 ± 10.75
+2025-09-11 22:20:51,995 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+2025-09-11 22:20:51,996 - logging_.py[line:49] - INFO: [1-shot]
+2025-09-11 22:20:51,996 - logging_.py[line:49] - INFO: Acc: 48.62 ± 10.43
+2025-09-11 22:20:51,996 - logging_.py[line:49] - INFO: Macro F1: 45.84 ± 9.76, Micro F1: 48.62 ± 10.43
+2025-09-11 22:20:51,996 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+
+2025-09-11 22:20:56,097 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-11 22:20:56,097 - logging_.py[line:105] - INFO: Arguments:
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-11 22:20:56,097 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 6                  | temp = 0.5                     | unify_dim = 50                
+2025-09-11 22:20:56,097 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-11 22:20:56,097 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-11 22:20:56,097 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage']
+2025-09-11 22:20:56,097 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-11 22:20:56,097 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-11 22:20:56,097 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-11 22:20:56,097 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-11 22:20:56,242 - logging_.py[line:49] - INFO: ##################################################
+2025-09-11 22:20:56,242 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ LastFMAsia ⭐🌼
+2025-09-11 22:20:56,826 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-11 22:20:56,888 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-11 22:20:56,888 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-11 22:20:56,888 - logging_.py[line:49] - INFO: learning rate: 0.002
+2025-09-11 22:21:08,879 - logging_.py[line:49] - INFO: [0]16.00 ± 0.00
+2025-09-11 22:23:05,529 - logging_.py[line:49] - INFO: [10]38.73 ± 11.16
+2025-09-11 22:25:02,025 - logging_.py[line:49] - INFO: [20]40.43 ± 11.76
+2025-09-11 22:26:58,208 - logging_.py[line:49] - INFO: [30]39.26 ± 11.29
+2025-09-11 22:28:53,214 - logging_.py[line:49] - INFO: [40]39.05 ± 10.59
+2025-09-11 22:30:47,912 - logging_.py[line:49] - INFO: [50]38.80 ± 10.52
+2025-09-11 22:32:38,043 - logging_.py[line:49] - INFO: [60]38.85 ± 10.12
+2025-09-11 22:34:34,391 - logging_.py[line:49] - INFO: [70]38.18 ± 10.09
+2025-09-11 22:36:30,692 - logging_.py[line:49] - INFO: [80]38.09 ± 10.00
+2025-09-11 22:38:23,772 - logging_.py[line:49] - INFO: [90]38.43 ± 10.27
+2025-09-11 22:40:08,207 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+2025-09-11 22:40:08,207 - logging_.py[line:49] - INFO: [1-shot]
+2025-09-11 22:40:08,207 - logging_.py[line:49] - INFO: Acc: 38.18 ± 10.18
+2025-09-11 22:40:08,207 - logging_.py[line:49] - INFO: Macro F1: 27.15 ± 5.72, Micro F1: 38.18 ± 10.18
+2025-09-11 22:40:08,207 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+
+2025-09-12 02:30:56,295 - logging_.py[line:104] - INFO: ==========================================================================================================================================================
+2025-09-12 02:30:56,295 - logging_.py[line:105] - INFO: Arguments:
+2025-09-12 02:30:56,295 - logging_.py[line:109] - INFO: a = 0.0                        | ablation_down = dnno           | ablation_pre = None            | adapt_ep = 400                 | alpha = 1.0                   
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: aug_type = edge                | backbone = gcn                 | barycenter = True              | batch_size = 1                 | beta = 1.0                    
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: combinetype = mul              | de_input = ax                  | de_loss = 0.0                  | de_weight = False              | downlr = 0.0                  
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: downstream_task = node         | drop_percent = 0.1             | ep_aug = False                 | experiment = EXP0908_ortho_wo_DE | gamma = 1.0                   
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: gpu = 0                        | graphId = [1]                  | hid_units = 256                | if_rand = False                | layers_num = 3                
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: lr = 0.001                     | model_type = barycenter        | moving_average_decay = 0.9     | n_mlp_layer = 2                | nb_epochs = 1000              
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: negative_samples_num = 40      | pretrain_method = LP           | proj_mode = domain             | proj_num_mlp = 1               | restart_epoch = 0             
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: sample_size = 256              | sampling = random              | seed = 39                      | shared = False                 | shot_num = 1                  
+2025-09-12 02:30:56,296 - logging_.py[line:109] - INFO: skip_pretrain = 1              | target_id = 0                  | temp = 0.5                     | unify_dim = 50                
+2025-09-12 02:30:56,296 - logging_.py[line:111] - INFO: ==========================================================================================================================================================
+2025-09-12 02:30:56,296 - logging_.py[line:49] - INFO: ✅ PrePromptBarycenter
+2025-09-12 02:30:56,296 - logging_.py[line:49] - INFO:    pretrain-dataset: ['Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+2025-09-12 02:30:56,296 - logging_.py[line:49] - INFO:    Backbone        : gcn
+2025-09-12 02:30:56,296 - logging_.py[line:49] - INFO:    de loss         : 0.0
+2025-09-12 02:30:56,296 - logging_.py[line:49] - INFO:    gamma           : 1.0
+2025-09-12 02:30:56,296 - logging_.py[line:49] - INFO:    shared          : False
+2025-09-12 02:30:56,431 - logging_.py[line:49] - INFO: ##################################################
+2025-09-12 02:30:56,431 - logging_.py[line:49] - INFO: Downastream dataset is 🌼⭐ Cora ⭐🌼
+2025-09-12 02:30:56,920 - logging_.py[line:49] - INFO: 🟩 Function: adaptation_barycenter_node
+2025-09-12 02:30:56,956 - logging_.py[line:49] - INFO:     a = 0.0 (Tok-k pseudo nodes)
+2025-09-12 02:30:56,956 - logging_.py[line:49] - INFO:     gamma = 1.0
+2025-09-12 02:30:56,956 - logging_.py[line:49] - INFO: learning rate: 0.003
+2025-09-12 02:31:06,049 - logging_.py[line:49] - INFO: [0]48.00 ± 0.00
+2025-09-12 02:32:41,764 - logging_.py[line:49] - INFO: [10]51.27 ± 13.05
+2025-09-12 02:34:27,629 - logging_.py[line:49] - INFO: [20]51.62 ± 12.43
+2025-09-12 02:36:14,366 - logging_.py[line:49] - INFO: [30]53.13 ± 11.71
+2025-09-12 02:38:01,057 - logging_.py[line:49] - INFO: [40]53.34 ± 12.20
+2025-09-12 02:39:47,264 - logging_.py[line:49] - INFO: [50]53.08 ± 12.09
+2025-09-12 02:41:32,089 - logging_.py[line:49] - INFO: [60]54.59 ± 12.12
+2025-09-12 02:43:18,770 - logging_.py[line:49] - INFO: [70]55.23 ± 12.14
+2025-09-12 02:45:03,207 - logging_.py[line:49] - INFO: [80]55.14 ± 11.81
+2025-09-12 02:46:48,426 - logging_.py[line:49] - INFO: [90]54.44 ± 11.64
+2025-09-12 02:48:24,075 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+2025-09-12 02:48:24,076 - logging_.py[line:49] - INFO: [1-shot]
+2025-09-12 02:48:24,076 - logging_.py[line:49] - INFO: Acc: 54.21 ± 11.50
+2025-09-12 02:48:24,076 - logging_.py[line:49] - INFO: Macro F1: 42.41 ± 9.03, Micro F1: 54.21 ± 11.50
+2025-09-12 02:48:24,076 - logging_.py[line:49] - INFO: ----------------------------------------------------------------------------------------------------
+

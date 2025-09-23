@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 import logging
+import csv
 
 def get_parent_curr_dir():
     current_file_path = os.path.abspath(__file__)
@@ -14,7 +15,7 @@ def make_dir(experiment):
     parent_dir, current_dir = get_parent_curr_dir()
     logfile = os.path.join(parent_dir, f'{experiment}_log.txt')
     save_dir = os.path.join(parent_dir, 'checkpoints', experiment)
-    result_dir = os.path.join(parent_dir, 'result')
+    result_dir = os.path.join(parent_dir, 'result', experiment)
     cache_dir = os.path.join(parent_dir, 'cache')
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(result_dir, exist_ok=True)
@@ -29,7 +30,7 @@ def get_save_name(args, pretrain_dataset_names, save_dir, result_dir):
     # set_name = f'model_{args.downstream_task}_{args.pretrain_method}_{pretrain_dataset_str}_{args.alpha}_{args.beta}_{args.ablation_pre}_{args.ablation_down}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
     # set_name = f'model_{args.downstream_task}_{args.pretrain_method}_{pretrain_dataset_str}_{args.ablation_pre}_{args.sample_size}_{args.nb_epochs}_{args.de_loss}_{args.de_weight}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
 
-    set_name = f'model_node_{args.pretrain_method}_{pretrain_dataset_str}_{args.ablation_pre}_{args.sample_size}_{args.nb_epochs}_{args.if_rand}_{args.de_loss}_{args.de_weight}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
+    set_name = f'model_node_{args.pretrain_method}_{pretrain_dataset_str}_{args.ablation_pre}_{args.sample_size}_{args.nb_epochs}_{args.if_rand}_{args.w1loss}_{args.de_loss}_{args.de_weight}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
 
     save_name = os.path.join(save_dir, f'{set_name}.pkl')
     csv_name = os.path.join(result_dir, f'{set_name}.csv')
@@ -48,7 +49,8 @@ def write(txt='\n'):
     print(txt)
     logging.info(txt)
 
-def write_rst(accs, shot_num, microf=None, macrof=None):
+import pandas as pd
+def write_rst(accs, shot_num, microf=None, macrof=None, csv_name='', seed=0, task=''):
     acc_mean = np.mean(accs)
     acc_std = np.std(accs)
     
@@ -63,6 +65,30 @@ def write_rst(accs, shot_num, microf=None, macrof=None):
         macro_std = np.std(macrof)
         write(f"Macro F1: {macro_mean:.2f} ± {macro_std:.2f}, Micro F1: {micro_mean:.2f} ± {micro_std:.2f}")
     write(f"{'-' * 100}\n")
+
+    accs = np.array(accs)
+
+    # 100회 결과 + 평균 1개까지 → 길이 101
+    data = {
+        f"Acc_{shot_num}shot({seed})_{task}": np.append(accs, accs.mean().round(3)),
+        f"Mic_{shot_num}shot({seed})_{task}": np.append(microf, microf.mean().round(3)),
+        f"Mac_{shot_num}shot({seed})_{task}": np.append(macrof, macrof.mean().round(3)),
+    }
+    df_new = pd.DataFrame(data)
+
+    # 파일이 있으면 기존 df 불러와서 merge
+    if os.path.exists(csv_name):
+        df_old = pd.read_csv(csv_name, encoding="utf-8-sig")
+        # 행 수가 다르면 맞춰줌 (빈칸 채움)
+        max_len = max(len(df_old), len(df_new))
+        df_old = df_old.reindex(range(max_len))
+        df_new = df_new.reindex(range(max_len))
+        df_out = pd.concat([df_old, df_new], axis=1)
+    else:
+        df_out = df_new
+
+    df_out.to_csv(csv_name, index=False, encoding="utf-8-sig")
+
     return acc_mean, macro_mean, micro_mean 
 
 def write_rst2(accs, iter, microf=None, macrof=None):
@@ -78,6 +104,8 @@ def write_rst2(accs, iter, microf=None, macrof=None):
         micro_std = np.std(microf)
         macro_std = np.std(macrof)
         write(f"Macro F1: {macro_mean:.2f} ± {macro_std:.2f}, Micro F1: {micro_mean:.2f} ± {micro_std:.2f}\n")
+    
+
     return acc_mean, macro_mean, micro_mean 
 
 def get_pretrain_dataset_names(data, target_id):

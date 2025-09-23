@@ -1,24 +1,24 @@
-import argparse
-import logging
-import os
-import random
-
-import torch
 import numpy as np
 import scipy.sparse as sp
+import random
+
+from preprompt import *
+import os
+import argparse
+
+import torch
+import logging
+from torch.utils.data import DataLoader
 import warnings
 import torch.nn as nn
-from torch.utils.data import DataLoader
-from torch_geometric.loader import DataLoader
 
-import train 
-import adapation 
+from torch_geometric.loader import DataLoader
 from utils.dataset import *
 from utils import process
 from utils.logging_ import * 
 from utils.figure import *
-from preprompt import *
-
+import train 
+import adapation 
 
 def set_seed(seed=42):
     random.seed(seed)                       # Python 내장 random
@@ -39,7 +39,7 @@ def set_gpu(gpu):
     device = torch.device("cuda")
     return device
 
-
+torch.cuda.empty_cache()
 parser = argparse.ArgumentParser("SAMGPT")
 
 # exp setting  
@@ -49,28 +49,27 @@ parser.add_argument('--experiment', type=str, default='EXP0527_vec2mlp', help='�
 parser.add_argument('--target_id', type=int, default=0, help='[Cora, Citeseer, Pubmed, Photo, Computers, FacebookPagePage, LastFMAsia]')
 parser.add_argument('--downstream_task', type=str, default='node', help='node or graph')
 parser.add_argument('--skip_pretrain', type=int, default=1, help='try to use trained models')
-parser.add_argument('--ablation_pre', type=str, default='None', help='ablation_pre')
-parser.add_argument('--ablation_down', type=str, default='dnno', help='ablation_down')
+parser.add_argument('--ablation_pre', type=str, default='ft', help='ablation_pre')
+parser.add_argument('--ablation_down', type=str, default='ft', help='ablation_down')
 parser.add_argument('--shot_num', type=int, default=1, help='shot_num')
 parser.add_argument('--graphId', nargs='+', type=int, default=[1], help='target graph\'s id in one dataset')
-parser.add_argument('--pretrain_method', type=str, default="LP", help='GRAPHCL or LP or splitLP')
-parser.add_argument('--dataset', type=int, default=0, help='dataset 조합')
+parser.add_argument('--pretrain_method', type=str, default="GRAPHCL", help='GRAPHCL or LP or splitLP')
 
 # Model
-parser.add_argument('--model_type', type=str, default='barycenter', help='[samgpt, anchor_mlp, vec2mlp, permMDGPT, barycenter]')
+parser.add_argument('--model_type', type=str, default='norm_mdgpt', help='[samgpt, anchor_mlp, vec2mlp, permMDGPT]')
 parser.add_argument('--n_mlp_layer', type=int, default=2, help='num of mlp layers')
 parser.add_argument('--backbone', type=str, default='gcn', help='backbone')
 parser.add_argument('--hid_units', type=int, default=256, help='hid_units')
 parser.add_argument('--layers_num', type=int, default=3, help='layers_num')
-parser.add_argument('--unify_dim', type=int, default=100, help='unify_dim')
+parser.add_argument('--unify_dim', type=int, default=50, help='unify_dim')
 parser.add_argument('--alpha', type=float, default=1.0, help='alpha of combines')
 parser.add_argument('--beta', type=float, default=1.0, help='beta of combines')
 parser.add_argument('--combinetype', type=str, default='mul', help='the type of text combining')   
 parser.add_argument('--shared', type=str2bool, default=False, help='shared token or DE 사용 여부')   
 
 # Training 
-parser.add_argument('--nb_epochs', type=int, default=1000, help='pretraining epoch')
-parser.add_argument('--adapt_ep', type=int, default=400, help='adpatation epoch')
+parser.add_argument('--nb_epochs', type=int, default=200, help='pretraining epoch')
+parser.add_argument('--adapt_ep', type=int, default=100, help='adpatation epoch')
 parser.add_argument('--ep_aug', type=str2bool, default=False, help='True: 매 에포크마다 augmentation 생성')
 parser.add_argument('--batch_size', type=int, default=1, help='backbone')
 parser.add_argument('--restart_epoch', type=int, default=0, help='이어서 학습 시작할 에포크')
@@ -78,19 +77,18 @@ parser.add_argument('--lr', type=float, default=0.001, help='learning rate')
 parser.add_argument('--drop_percent', type=float, default=0.1, help='drop percent')
 parser.add_argument('--aug_type', type=str, default="edge", help='aug type: mask or edge')
 parser.add_argument('--negative_samples_num', type=int, default=40, help='negative_samples_num')
-parser.add_argument('--downlr', type=float, default=0.0, help='downstream learning rate')
-parser.add_argument('--w1loss', type=float, default=1.0, help='w1loss weight')
+
 # DE
-parser.add_argument('--de_loss', type=float, default=10.0, help='dim encoder loss 얼마나 반영할지')
+parser.add_argument('--de_loss', type=float, default=1.5, help='dim encoder loss 얼마나 반영할지')
 parser.add_argument('--de_weight', type=str2bool, default=False, help='de loss 합산 시 가중치 반영 여부 ')
-parser.add_argument('--de_input', type=str, default='ax', help='[x, ax, concat]')
+parser.add_argument('--de_input', type=str, default='x', help='[x, ax, concat]')
 parser.add_argument('--sample_size', type=int, default=256, help='DE input dimension size')
 parser.add_argument('--sampling', type=str, default='random', help='DE 에 입력할 노드 샘플링 방법')
 parser.add_argument('--if_rand', type=str2bool, default=False, help='sampling 방법')
 parser.add_argument('--a', type=float, default=0.0, help='adatation 때 open dim encoder loss 얼마나 반영할지')
-parser.add_argument('--gamma', type=float, default=1.0, help='open+composed prompt 가중합 비율 - (1-r)*open + r*com')
-parser.add_argument('--barycenter', type=str2bool, default=True, help='barycenter loss 사용 여부')
-parser.add_argument('--prompt_init', type=str, default='source', help='prompt basis vector init target or sourcce')
+parser.add_argument('--gamma', type=float, default=0.0, help='open+composed prompt 가중합 비율 - (1-r)*open + r*com')
+parser.add_argument('--barycenter', type=str2bool, default=False, help='barycenter loss 사용 여부')
+
 
 # GraphACL
 parser.add_argument('--temp', type=float, default=0.5, help='Temperature hyperparameter.')
@@ -103,7 +101,6 @@ args = parser.parse_args()
 warnings.filterwarnings("ignore")
 
 set_seed(args.seed)
-torch.cuda.empty_cache()
 device = set_gpu(args.gpu)
 
 shot_num = args.shot_num
@@ -128,65 +125,18 @@ target_id = args.target_id
 model_type = args.model_type
 sample_size = args.sample_size
 
-LP = (args.pretrain_method == 'LP')
-# LP=True # batch norm, drop out 
+# LP = (args.pretrain_method == 'LP')
+LP=True # batch norm, drop out 
 
 # data = ['Cora', 'Photo']
 # data = ['Cora', 'Pubmed','FacebookPagePage', 'LastFMAsia']
-
-if args.dataset == 0: 
-            # 0         1          2         3         4                5                6        
-    data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
-elif args.dataset == 1: 
-    #          0        1           2        3          4          5         6           7            8           9
-    data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'Texas', 'Cornell', 'Wisconsin', 'chameleon', 'squirrel']
-
-elif args.dataset == 2: 
-    data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers']
-
-elif args.dataset == 4: 
-    data = ['squirrel', 'chameleon', 'Cornell', 'Cora']
+        # 0         1          2         3         4                5                6        
+data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia']
+#          0        1           2        3          4          5         6           7            8           9
+# data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'Texas', 'Cornell', 'Wisconsin', 'chameleon', 'squirrel']
 # data = ['Cora', 'Texas', 'Cornell', 'Wisconsin', 'chameleon', 'squirrel']
-# 
+# data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'Reddit']
 # data = ['Cora', 'Citeseer', 'Pubmed', 'Cornell', 'squirrel', 'chameleon']
-
-# dataset increading 
-elif args.dataset == 5: 
-    # data = ['Cora', 'Citeseer']
-    data = ['FacebookPagePage', 'Citeseer']
-elif args.dataset == 6: 
-    data = ['Cora', 'Citeseer', 'Pubmed']
-elif args.dataset == 7: 
-    data = ['Cora', 'Citeseer', 'Pubmed', 'Photo']
-elif args.dataset == 8: 
-    data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers']
-
-elif args.dataset == 9: 
-    data = ['FacebookPagePage', 'Cora', ]
-elif args.dataset == 10: 
-    data = ['FacebookPagePage', 'Cora', 'Citeseer']
-elif args.dataset == 11: 
-    data = ['FacebookPagePage', 'Cora', 'Citeseer', 'LastFMAsia']
-elif args.dataset == 12: 
-    data = ['FacebookPagePage', 'Cora', 'Citeseer', 'LastFMAsia', 'Photo']
-
-# dataset increading 
-elif args.dataset == 13: 
-    # data = ['Cora', 'Pubmed']
-    data = ['FacebookPagePage', 'Pubmed']
-
-elif args.dataset == 14: 
-    # data = ['Cora', 'Citeseer', 'Pubmed']
-    data = ['FacebookPagePage', 'Citeseer', 'Pubmed']
-
-elif args.dataset == 15: 
-    # data = ['Cora', 'Citeseer', 'Pubmed', 'Photo']
-    data = ['FacebookPagePage', 'Citeseer', 'Pubmed', 'Photo', ]
-
-elif args.dataset == 16: 
-    # data = ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'LastFMAsia']
-    data = ['FacebookPagePage', 'Citeseer', 'Pubmed', 'Photo', 'LastFMAsia']
-
 
 dataset = data[args.target_id]
 downstream = data[args.target_id]
@@ -304,54 +254,36 @@ elif model_type == 'barycenter':
     write(f'   gamma           : {args.gamma}')
     write(f'   shared          : {args.shared}')
 
-    # args.barycenter = True 
+    args.barycenter = True 
     model = PrePromptBarycenter(unify_dim, hid_units, nonlinearity, pretrain_dataset_num, 
             layers_num, 0.1, type_ = args.combinetype, backbone = args.backbone, #'norm_mdgpt',
             alpha = args.alpha, ablation = ablation_pre, scaling_factor=3, n_sample=sample_size, 
             if_rand=False,  de_loss=args.de_loss, de_weight=args.de_weight, sampling=args.sampling,
             n_mlp_layer=args.n_mlp_layer, de_input=args.de_input, shared=args.shared).cuda()
-
 elif model_type == 'w1mlp': 
     write(f"✅ PrePromptMLPW1Bary")
     write(f'   pretrain-dataset: {pretrain_dataset_names}')
     write(f'   Backbone        : {args.backbone}')
 
-    model = PrePromptMLPW1Bary(unify_dim, hid_units, nonlinearity, pretrain_dataset_num, 
+    PrePromptMLPW1Bary(unify_dim, hid_units, nonlinearity, pretrain_dataset_num, 
             layers_num, 0.1, type_ = args.combinetype, backbone = args.backbone, #'norm_mdgpt',
             alpha = args.alpha, ablation = ablation_pre, scaling_factor=3, n_sample=sample_size, 
             if_rand=False,  de_loss=args.de_loss, de_weight=args.de_weight, sampling=args.sampling,
-            n_mlp_layer=args.n_mlp_layer, de_input=args.de_input, shared=args.shared).cuda()
+            n_mlp_layer=args.n_mlp_layer, de_input=args.de_input, shared=args.shared)
+
 
 try:
     print(args.skip_pretrain)
     assert args.skip_pretrain == 1, 'try to use trained models'
     print(f'loading model from {save_name}')
-    # model.load_state_dict(torch.load(save_name))
-    
-    try: 
-        checkpoint = torch.load(save_name)
-        model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-        best_barycenter = checkpoint['best_barycenter']
-    except:
-        pretrain_dataset_str = ''
-        for strs in pretrain_dataset_names: 
-            pretrain_dataset_str += '_'+strs
-        set_name = f'model_node_{args.pretrain_method}_{pretrain_dataset_str}_{args.ablation_pre}_{args.sample_size}_{args.nb_epochs}_{args.if_rand}_{args.de_loss}_{args.de_weight}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
-        save_name = os.path.join(save_dir, f'{set_name}.pkl')
-        
-        checkpoint = torch.load(save_name)
-        model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-        best_barycenter = checkpoint['best_barycenter']
+    model.load_state_dict(torch.load(save_name))
 except:
-    save_name, csv_name = get_save_name(args, pretrain_dataset_names, save_dir, result_dir)
-
     pretrain_loaders = [DataLoader(load_dataset(dataset)) for dataset in pretrain_dataset_names]
     
     features, adjs, edge_indexs = process.get_features_adjs(pretrain_loaders,  \
                     cache_dir, pretrain_dataset_names, target_graph_id)
     
-
-    if ablation_pre == 'PCA' or model_type in ['samgpt', 'w1mlp']: 
+    if ablation_pre == 'PCA' or model_type == 'samgpt': 
         # aug_features, aug_adjs, lbls, negetive_samples, combinedadj = process.preprocess_dataset_w_DE(
         #                                                                 features, adjs, pretrain_method, \
         #                                                                 sparse, drop_percent, negative_samples_num)
@@ -360,25 +292,28 @@ except:
     aug_features, aug_adjs, lbls, negetive_samples, combinedadj = process.preprocess_dataset_w_DE_pyg(
                                                                         features, edge_indexs, pretrain_method, \
                                                                         drop_percent, negative_samples_num)
+    
 
-    # print('Aug feat[0]: ', aug_features[0].size())
+
+    print('Aug feat[0]: ', aug_features[0].size())
+    
+
 
     if torch.cuda.is_available():
         print('Using CUDA')
 
         features = [tensors.cuda() for tensors in features]
-        edge_indexs = [tensors.cuda() for tensors in edge_indexs]
+        
         
         if not args.ep_aug: 
             edge_indexs = [tensors.cuda() for tensors in edge_indexs]
             adjs = [process.sparse_mx_to_torch_sparse_tensor(adj).cuda() if sparse else torch.FloatTensor(adj.todense()).cuda() 
                 for adj in adjs]
         
-        # negetive_samples = [tensors.cuda() for tensors in negetive_samples]
-        # negetive_samples.cuda()
+        negetive_samples = [tensors.cuda() for tensors in negetive_samples]
 
-        # if len(negetive_samples) == 0:
-        #     negetive_samples = negetive_sample.cuda()
+        if len(negetive_samples) == 0:
+            negetive_samples = negetive_sample.cuda()
 
         # aug_adjs = [tensors.cuda() for tensors in aug_adjs]
         aug_adjs = [
@@ -390,32 +325,23 @@ except:
         lbls = [tensors.cuda() for tensors in lbls]
     
 
-    if model_type in ['samgpt', 'norm_mdgpt', 'sharedFUG', 'filterFUG', 'filterbank', 'barycenter', 'w1mlp']:
+            
+    if model_type in ['samgpt', 'norm_mdgpt', 'sharedFUG', 'filterFUG', 'filterbank', 'barycenter']:
         if pretrain_method == 'GRAPHCL':
+            
             if args.ep_aug: 
-                train.train_fug_graphcl(model=model, lr=lr, weight_decay=l2_coef, 
+                train.train_fug_graphcl_ep_aug(model=model, lr=lr, weight_decay=l2_coef, 
                         start_epoch=args.restart_epoch, num_epoch=nb_epochs, 
                         features=features, edge_indexs=edge_indexs, drop_percent=drop_percent,
-                        sparse=sparse, save_name=save_name, 
-                        patience=patience, gamma=args.gamma, model_type=model_type, 
-                        barycenter=args.barycenter,  sample_size=sample_size, unify_dim=unify_dim, ep_aug=args.ep_aug)
-        
+                         sparse=sparse, save_name=save_name, patience=patience, gamma=args.gamma, model_type=model_type)
             else: 
                 train.train_fug_graphcl(model=model, lr=lr, weight_decay=l2_coef, 
                         start_epoch=args.restart_epoch, num_epoch=nb_epochs, 
                         aug_features=aug_features, aug_adjs=aug_adjs, 
                         lbls=lbls, sparse=sparse, save_name=save_name, 
                         patience=patience, gamma=args.gamma, model_type=model_type, 
-                        barycenter=args.barycenter,  sample_size=sample_size, unify_dim=unify_dim, ep_aug=args.ep_aug)
+                        barycenter=args.barycenter,  sample_size=sample_size, unify_dim=unify_dim)
         
-        elif pretrain_method == 'LP':
-            train.train_fug_lp(model=model, lr=lr, weight_decay=l2_coef, 
-                        start_epoch=args.restart_epoch, num_epoch=nb_epochs, 
-                        features=features, edge_indexs=edge_indexs, negetive_samples=negetive_samples, 
-                        sparse=sparse, save_name=save_name, 
-                        patience=patience, gamma=args.gamma, model_type=model_type, 
-                        barycenter=args.barycenter,  sample_size=sample_size, unify_dim=unify_dim, w1loss=args.w1loss)
-            
     elif model_type == 'GraphACL':
         train.train_graphacl(model, features, edge_indexs, save_name, \
                         lr=lr, weight_decay=l2_coef, \
@@ -428,60 +354,14 @@ write(f'Downastream dataset is 🌼⭐ {downstream} ⭐🌼')
 downstream_dataset = load_dataset(downstream)
 downstream_loader = DataLoader(downstream_dataset)
 
-if args.downlr == 0.0: 
-    if args.downstream_task == 'node':
-        if target_id == 0: # Cora   
-            downlr = 0.005
-        elif target_id == 1: # Citeseer
-            downlr = 0.035
-        elif target_id == 2: # Pubmed
-            downlr = 0.003 
-        elif target_id == 3: # Photo
-            downlr = 0.00005
-        elif target_id == 4: # Computers
-            downlr = 0.0001
-        elif target_id == 5: # Facebook
-            downlr = 0.0008
-        elif target_id == 6: # LastFM 
-            downlr = 0.0008
-    elif args.downstream_task == 'graph':
-        if target_id == 0: # Cora   
-            downlr = 0.035
-        elif target_id == 1: # Citeseer
-            downlr = 0.03
-        elif target_id == 2: # Pubmed
-            downlr = 0.035 
-        elif target_id == 3: # Photo
-            downlr = 0.00005
-        elif target_id == 4: # Computers
-            downlr = 0.0001
-        elif target_id == 5: # Facebook
-            downlr = 0.003
-        elif target_id == 6: # LastFM 
-            # downlr = 0.03
-            downlr = 0.0008
-
-else: 
-    downlr = args.downlr
-
 for data in downstream_loader:
     print(data)
     t_feature, adj= process.process_tu(data,data.x.shape[1])
-    print('t_feature: ', t_feature.shape)
     print('process done')
     edge_index = data.edge_index.cuda()
-    pca_t_feature = torch.FloatTensor(pca_compression(t_feature,k=unify_dim)).cuda()
+    # pca_t_feature = torch.FloatTensor(pca_compression(t_feature,k=unify_dim)).cuda()
     adj = process.normalize_adj(adj + sp.eye(adj.shape[0]))
-
-    # idx_test = range(int(data.y.shape[0] - test_idx_num), data.y.shape[0])
-    idx_test = range(int(data.y.shape[0] - 1000), data.y.shape[0])
-    # idx_test = range(0, test_idx_num)
-    
-    labels = data.y[idx_test]
-    unique, counts = torch.unique(labels, return_counts=True)
-    for u, c in zip(unique.tolist(), counts.tolist()):
-        print(f"class {u}: {c}")
-    
+    idx_test = range(int(data.y.shape[0] - test_idx_num), data.y.shape[0])
     labels = data.y
     data=np.array(data.y)
     np.unique(data)
@@ -497,35 +377,8 @@ for data in downstream_loader:
         adj = torch.FloatTensor(adj.todense()).cuda()
     t_feature = t_feature.cuda()
 
-# print(f'[{downstream}]')
-# active_features_per_node = t_feature.sum(dim=1)            # [num_nodes]
-# avg_active_per_node = active_features_per_node.float().mean().item()
-# avg_active_per_node_std = active_features_per_node.float().std().item()
-# print(f'각 샘플별 활성화된 피처 수: {avg_active_per_node:.2f} ± {avg_active_per_node_std:.2f}')
-# active_nodes_per_feature = t_feature.sum(dim=0)
-# print(f'각 피처 디멘젼별 활성화된 샘플 수: {active_nodes_per_feature.mean().item():.2f} ± {active_nodes_per_feature.std().item():.2f}')  
-
 print(f'loading model from {save_name}')
-
-try:
-    checkpoint = torch.load(save_name)
-
-    model.load_state_dict(checkpoint['model_state_dict'])
-    best_barycenter = checkpoint['best_barycenter']
-    print(f'pretrain best epoch: {checkpoint["epoch"]}, loss: {checkpoint["loss"]}')
-
-
-except: 
-    pretrain_dataset_str = ''
-    for strs in pretrain_dataset_names: 
-        pretrain_dataset_str += '_'+strs
-    set_name = f'model_node_{args.pretrain_method}_{pretrain_dataset_str}_{args.ablation_pre}_{args.sample_size}_{args.nb_epochs}_{args.if_rand}_{args.de_loss}_{args.de_weight}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
-    save_name = os.path.join(save_dir, f'{set_name}.pkl')
-    
-    model.load_state_dict(checkpoint['model_state_dict'])
-    best_barycenter = checkpoint['best_barycenter']
-    print(f'pretrain best epoch: {checkpoint["epoch"]}, loss: {checkpoint["loss"]}')
-
+model.load_state_dict(torch.load(save_name))
 model = model.cuda()
 
 save_path = save_name + "_apapt"
@@ -534,24 +387,23 @@ pretrain_loaders = [DataLoader(load_dataset(dataset)) for dataset in pretrain_da
     
 features, adjs, edge_indexs = process.get_features_adjs(pretrain_loaders,  \
                        cache_dir, pretrain_dataset_names, target_graph_id)
-# aug_features, aug_adjs, lbls, negetive_samples, combinedadj = process.preprocess_dataset_w_DE_pyg(
-#                                                                     features, edge_indexs, pretrain_method, \
-#                                                                     drop_percent, negative_samples_num)
+aug_features, aug_adjs, lbls, negetive_samples, combinedadj = process.preprocess_dataset_w_DE_pyg(
+                                                                    features, edge_indexs, pretrain_method, \
+                                                                    drop_percent, negative_samples_num)
 
 
 ### barycenter - 각 소스 그래프들의 W1 distance 측정 
 # features = [torch.FloatTensor(pca_compression(feature,k=unify_dim)) for feature in features]
 
 # aug_adjs = [tensors.cuda() for tensors in aug_adjs]
-# aug_adjs = [
-#             [edge_index.cuda() for edge_index in ei_list]
-#             for ei_list in aug_adjs
-#         ]
+aug_adjs = [
+            [edge_index.cuda() for edge_index in ei_list]
+            for ei_list in aug_adjs
+        ]
 features = [tensors.cuda() for tensors in features]
 edge_indexs = [tensors.cuda() for tensors in edge_indexs]
-# negetive_samples= [tensors.cuda() for tensors in negetive_samples]
-# aug_features = [tensors.cuda() for tensors in aug_features]
-# lbls = [tensors.cuda() for tensors in lbls]
+aug_features = [tensors.cuda() for tensors in aug_features]
+lbls = [tensors.cuda() for tensors in lbls]
 
 
 # xt_list = [model.samplers[i](features[i], edge_indexs[i]) for i in range(len(features))]
@@ -586,50 +438,15 @@ edge_indexs = [tensors.cuda() for tensors in edge_indexs]
 
 # from train import aggregate_features
 # aggregate_feat = [aggregate_features(features[i], edge_indexs[i], gamma=args.gamma) for i in range(len(features))]
+# if model_type == 'GraphACL': 
+#     loss = model(features, edge_indexs, aggregate_feat) 
+# else: 
+#     loss = model(aug_features, aug_adjs, sparse, None, None, None, lbls, aggregate_feat) 
 
-if model_type == 'barycenter': 
-    basis_matrix = [] 
-    from train import aggregate_features
-    # 소스 도메인을 통과시킴 
-    if args.prompt_init == 'source': 
-        aggregate_feat = [aggregate_features(features[i], edge_indexs[i], gamma=args.gamma) for i in range(len(features))]
-        xt_list = model.get_reduction(features, edge_indexs, aggregate_feat)
-
-    # 타겟 도메인을 통과시킴 ! 
-    elif args.prompt_init == 'target': 
-        aggregate_feat = [aggregate_features(t_feature, edge_index) for i in range(len(features))]
-        xt_list = model.get_reduction([t_feature for i in range(len(features))], edge_indexs, aggregate_feat)
-
-    for idx, layer in enumerate(model.dimension_encoder_layers): 
-        basis_matrix.append(layer.basis_matrix().mean(dim=0).detach())
-
-elif model_type == 'filterFUG': 
-    basis_matrix = [] 
-    from train import aggregate_features
-    aggregate_feat = [aggregate_features(features[i], edge_indexs[i], gamma=args.gamma) for i in range(len(features))]
-    # xt_list = model.get_reduction(features, edge_indexs, aggregate_feat)
-    loss = model.get_de_forward(features, edge_indexs, sparse, aggregate_feat) 
-
-    for idx, layer in enumerate(model.high_dimension_encoder): 
-        basis_matrix.append(layer.basis_matrix().mean(dim=0).detach())
-
-elif model_type == 'filterbank': 
-    low_basis_matrix = [] 
-    high_basis_matrix = [] 
-    iden_basis_matrix = [] 
-    
-    from train import aggregate_features
-    aggregate_feat = [aggregate_features(features[i], edge_indexs[i], gamma=args.gamma) for i in range(len(features))]
-    xt_list = model.get_reduction(features, edge_indexs, aggregate_feat)
-
-    for idx in range(len(model.high_dimension_encoder)): 
-        high_basis_matrix.append(model.high_dimension_encoder[idx].basis_matrix().mean(dim=0).detach())
-        low_basis_matrix.append(model.low_dimension_encoder[idx].basis_matrix().mean(dim=0).detach())
-        iden_basis_matrix.append(model.identity_dimension_encoder[idx].basis_matrix().mean(dim=0).detach())
-
-    basis_matrix = [iden_basis_matrix, low_basis_matrix, high_basis_matrix]
-else: 
-    basis_matrix = None 
+# basis_matrix = [] 
+# for idx, layer in enumerate(model.dimension_encoder_layers): 
+#     basis_matrix.append(layer.basis_matrix().detach())
+basis_matrix = None 
 
 adapta_epoch = args.adapt_ep
 
@@ -642,7 +459,7 @@ if model_type == 'samgpt':
                                     args.beta, hid_units, nb_classes, unify_dim, layers_num,\
                                     args.combinetype, ablation_down, patience, save_path, \
                                     epoch=adapta_epoch, sample_size = sample_size, if_rand=args.if_rand,\
-                                    gamma=args.gamma, basis_matrix=basis_matrix, n_mlp_layer=n_mlp_layer, sampling=args.sampling, model_type=model_type, shared=args.shared, lr=downlr)
+                                    gamma=args.gamma, basis_matrix=basis_matrix, n_mlp_layer=n_mlp_layer, sampling=args.sampling, model_type=model_type, shared=args.shared)
     else: 
         adapation.adaptation_FUG_graph(model, features, edge_index, labels, test_index, test_batch,\
                                     sparse, idx_test, shot_num, dataset, 
@@ -691,7 +508,7 @@ elif model_type in ['norm_mdgpt']:
                                      sparse, idx_test, shot_num, dataset, 
                                      args.beta, hid_units, nb_classes, unify_dim, layers_num,\
                                      args.combinetype, ablation_down, patience, save_path, epoch=adapta_epoch, sample_size = sample_size, if_rand=args.if_rand, a=args.a, 
-                                     gamma=args.gamma, basis_matrix=basis_matrix, n_mlp_layer=n_mlp_layer, sampling=args.sampling, model_type=model_type, shared=args.shared, lr=downlr)
+                                     gamma=args.gamma, basis_matrix=basis_matrix, n_mlp_layer=n_mlp_layer, sampling=args.sampling, model_type=model_type, shared=args.shared)
         else: 
             adapation.adaptation_FUG_graph(model, t_feature, edge_index, labels, test_index, test_batch,\
                                      sparse, idx_test, shot_num, dataset, 
@@ -705,83 +522,14 @@ elif model_type == 'sharedFUG' or model_type == 'filterFUG' or model_type == 'fi
                                      sparse, idx_test, shot_num, dataset, 
                                      args.beta, hid_units, nb_classes, unify_dim, layers_num,\
                                      args.combinetype, ablation_down, patience, save_path, epoch=adapta_epoch, sample_size = sample_size, if_rand=args.if_rand, a=args.a, 
-                                     gamma=args.gamma, basis_matrix=basis_matrix, n_mlp_layer=n_mlp_layer, sampling=args.sampling, shared=args.shared, barycenter=best_barycenter, lr=downlr)
+                                     gamma=args.gamma, basis_matrix=basis_matrix, n_mlp_layer=n_mlp_layer, sampling=args.sampling, shared=args.shared)
 
-elif model_type == 'barycenter' : 
-    if args.downstream_task == 'node': 
-        adapation.adaptation_barycenter_node(model_type, model, t_feature, edge_index, labels, \
+elif model_type == 'barycenter': 
+    adapation.adaptation_barycenter_node(model, t_feature, edge_index, labels, \
                             sparse, idx_test, shot_num, dataset, \
                             args.beta, hid_units, nb_classes, unify_dim, layers_num,\
                             args.combinetype, ablation_down, patience, save_path, epoch=adapta_epoch, \
                             sample_size=sample_size, if_rand=args.if_rand, a=args.a, gamma=args.gamma, de_input=args.de_input, 
-                            n_mlp_layer=args.n_mlp_layer, sampling=args.sampling, shared=args.shared, barycenter=best_barycenter, 
-                            lr=downlr, basis_matrix=basis_matrix, csv_name=csv_name, seed=args.seed)
-
-    elif args.downstream_task == 'graph': 
-        adapation.adaptation_barycenter_graph(model_type, model, t_feature, edge_index, labels, test_index, test_batch, \
-                            sparse, idx_test, shot_num, dataset, \
-                            args.beta, hid_units, nb_classes, unify_dim, layers_num,\
-                            args.combinetype, ablation_down, patience, save_path, epoch=adapta_epoch, \
-                            sample_size=sample_size, if_rand=args.if_rand, a=args.a, gamma=args.gamma, de_input=args.de_input, 
-                            n_mlp_layer=args.n_mlp_layer, sampling=args.sampling, shared=args.shared, barycenter=best_barycenter, 
-                            lr=downlr, basis_matrix=basis_matrix, csv_name=csv_name, seed=args.seed)
-
-
-elif model_type == 'w1mlp': 
-    adapation.adaptation_barycenter_node(model_type, model, pca_t_feature, edge_index, labels, \
-                            sparse, idx_test, shot_num, dataset, \
-                            args.beta, hid_units, nb_classes, unify_dim, layers_num,\
-                            args.combinetype, ablation_down, patience, save_path, epoch=adapta_epoch, \
-                            sample_size=sample_size, if_rand=args.if_rand, a=args.a, gamma=args.gamma, de_input=args.de_input, 
-                            n_mlp_layer=args.n_mlp_layer, sampling=args.sampling, shared=args.shared, barycenter=best_barycenter, lr=downlr)
+                            n_mlp_layer=args.n_mlp_layer, sampling=args.sampling, shared=args.shared)
     
-elif model_type == 'GraphACL':
-    
-    if ablation_down == 'DEt_finetune':
-        adapation.GraphACL_finetune_node(model, t_feature, edge_index, labels, \
-                                     sparse, idx_test, shot_num, dataset, 
-                                     args.beta, hid_units, nb_classes, unify_dim, layers_num,\
-                                     args.combinetype, ablation_down, patience, save_path, \
-                                     epoch=adapta_epoch, sample_size = sample_size, if_rand=args.if_rand, gamma=args.gamma, n_mlp_layer=n_mlp_layer, sampling=args.sampling)
 
-    elif ablation_down == 'pca_finetune':
-        if args.downstream_task == 'node': 
-            features = torch.FloatTensor(pca_compression(t_feature.cpu(),k=unify_dim)).cuda()
-            adapation.GraphACL_finetune_node(model, features, edge_index, labels, \
-                                     sparse, idx_test, shot_num, dataset, 
-                                     args.beta, hid_units, nb_classes, unify_dim, layers_num,\
-                                     args.combinetype, ablation_down, patience, save_path, \
-                                     epoch=adapta_epoch, sample_size = sample_size, if_rand=args.if_rand, gamma=args.gamma, n_mlp_layer=n_mlp_layer, sampling=args.sampling)
-    else: 
-        adapation.adaptation_GraphACL_node(model, t_feature, edge_index, labels, \
-                                     sparse, idx_test, shot_num, dataset, \
-                                     args.beta, hid_units, nb_classes, unify_dim, layers_num,\
-                                     args.combinetype, ablation_down, patience, save_path,  epoch=adapta_epoch, sample_size = sample_size, 
-                                     if_rand=args.if_rand, a=args.a, gamma=args.gamma, basis_matrix=basis_matrix, n_mlp_layer=args.n_mlp_layer, sampling=args.sampling)
-
-
-# model.eval()
-
-# arr = [] 
-# class_labels = []
-# for i in range(len(aug_features)):
-#     print(i)                        
-#     arr.append(model.get_forward(aug_features[i][0], aug_adjs[i][0], sparse, None, False, i))
-
-# arr.append(torch.stack(emb_test, dim=0).squeeze(0))
-# print(torch.stack(emb_test, dim=0).squeeze(0).shape)
-# # plot_source_emb_tnse(arr, args.backbone)
-# class_labels = labels
-
-# emb_test = torch.stack(emb_test).squeeze(0)
-# emb_train = torch.stack(emb_train).squeeze(0)
-
-# # 2. 전체 합치기
-# all_embs = torch.cat([emb_test, emb_train], dim=0)  # [N_total, 256]
-
-# # 3. 전체 라벨 합치기
-# labels_test = class_labels[idx_test]
-# labels_train = class_labels[idx_train.cpu().numpy()]
-# all_labels = torch.cat([labels_test, labels_train], dim=0)  # [N_total]
-
-# tsne_test_train_w_class(emb_test.shape[0], emb_train.shape[0], all_embs, all_labels, f'{downstream}_test_train', args.backbone)

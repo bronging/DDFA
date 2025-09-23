@@ -1,9 +1,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn as nn
-import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 import torch
+from torch.nn.utils import spectral_norm
 
 class DimensionNN_V2(nn.Module):
     def __init__(self, n_in, n_h, n_out, activator, layers=1):
@@ -126,7 +125,11 @@ class DimensionNN_FUG(nn.Module):
             self.lin_in = nn.Linear(n_in, n_out) # 1 layer 만 사용  
         elif layers == 2: 
             self.lin_in = nn.Linear(n_in, n_h)
+            # self.bn_in = nn.BatchNorm1d(n_h)
             self.lin_out = nn.Linear(n_h, n_out)
+
+            # self.lin_in = spectral_norm(self.lin_in)
+            # self.lin_out = spectral_norm(self.lin_out)
         elif layers == 3: 
             self.lin_in = nn.Linear(n_in, n_h)
             self.lin_h1 = nn.Linear(n_h, n_h)
@@ -169,6 +172,7 @@ class DimensionNN_FUG(nn.Module):
             return self.lin_in(x) 
         elif self.layers == 2: 
             z = self.act(self.lin_in(x))
+            # z = self.act(self.bn_in(self.lin_in(x)))
             return self.lin_out(z)
         elif self.layers == 3:
             z = self.act(self.lin_in(x))
@@ -192,8 +196,9 @@ class DimensionNN_FUG(nn.Module):
         # print(self.out.shape)
         # print(self.out.mean(dim=0).shape)
         # print(self.out.mean(dim=0).pow(2).shape)
-        return self.out.mean(dim=0).pow(2).mean()
 
+        return self.out.mean(dim=0).pow(2).mean()
+        
     def feature_sig_propagate(self, x, dimension_sig):
         # ✅ 입력 정규화 (especially for binary vs float feature scale difference)
         # x = (x - x.mean(dim=0)) / (x.std(dim=0) + 1e-6)

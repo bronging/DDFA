@@ -5,7 +5,8 @@ from sklearn.metrics import f1_score
 import random
 
 from models import LogReg, FeatureMLP
-from preprompt import PrePrompt, pca_compression, PrePromptwithMLP, PrePromptwithMLPToken
+from preprompt import PrePrompt, pca_compression
+from legacy_exp.preprompt_lagacy import PrePromptwithMLPToken
 import preprompt
 import pdb
 import os

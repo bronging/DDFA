@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 # import matplotlib.pyplot as plt
 from sklearn import manifold
-from preprompt import pca_compression, prompt_pretrain_sample
+# from preprompt import pca_compression, prompt_pretrain_sample
 import utils.aug as aug 
 import gc 
 
@@ -426,6 +426,25 @@ def graphcl_ep_build_aug(features, adjs, sparse, drop_percent):
         
     return aug_features, aug_adjs, lbls 
 
+def prompt_pretrain_sample(adj,n):
+    nodenum=adj.shape[0]
+    indices=adj.indices # edge 존재하는 column 인덱스들 
+    indptr=adj.indptr   # row pointer
+    res=np.zeros((nodenum,1+n)) # [node, 1 + negative num] -> node 별로 pos 하나, neg 하나 
+    whole=np.array(range(nodenum))
+
+    for i in range(nodenum): # 각 노드별로 (anchor i)
+        nonzero_index_i_row=indices[indptr[i]:indptr[i+1]] # i의 이웃 노드들 
+        zero_index_i_row=np.setdiff1d(whole,nonzero_index_i_row) # i와 이웃이 아닌 노드들 
+        np.random.shuffle(nonzero_index_i_row) # 
+        np.random.shuffle(zero_index_i_row)
+        if np.size(nonzero_index_i_row)==0:
+            res[i][0] = i # 이웃 없으면 자기 자신을 pos로 
+        else:
+            res[i][0]=nonzero_index_i_row[0] # 이웃 중 하나를 pos 로 
+        res[i][1:1+n]=zero_index_i_row[0:n]  # 비이웃 중 n 개를 negative로 선택  
+    return torch.tensor(res.astype(int) )
+
 def preprocess_dataset_w_DE_pyg(features, edge_indices, pretrain_method,
                                  drop_percent, negative_samples_num):
 
@@ -453,18 +472,58 @@ def preprocess_dataset_w_DE_pyg(features, edge_indices, pretrain_method,
             negative_sample = prompt_pretrain_sample(edge_index, 50)  # NOTE: assumes edge_index input
             negative_samples.append(negative_sample)
 
-        # edge_index is already normalized in PyG, no need for explicit normalization
-        del x, edge_index
-        gc.collect()
+        if pretrain_method == 'LP':    
+            num_nodes = x.shape[0]
+            negative_sample = prompt_pretrain_sample_edgeindex(edge_index, num_nodes, negative_samples_num)
+            negative_samples.append(negative_sample)
+            print(negative_sample.shape)
+    # if pretrain_method == 'LP': 
+    #     negative_samples = torch.cat(negative_samples, dim=0)  
 
     return aug_features, aug_edge_indices, lbls, negative_samples, combined_edge_index
+
+def prompt_pretrain_sample_edgeindex(edge_index, num_nodes, n):
+    """
+    edge_index : [2, E] tensor (PyG 스타일)
+    num_nodes  : 전체 노드 수
+    n          : negative sample 개수
+    return     : [num_nodes, 1+n] (각 노드별로 [pos, neg1, ..., negn])
+    """
+    # 1. adjacency list 생성
+    edge_index = edge_index.cpu().numpy()
+    neighbors = [[] for _ in range(num_nodes)]
+    for u, v in edge_index.T:   # [2,E] → (u,v) 튜플 반복
+        neighbors[u].append(v)
+        neighbors[v].append(u)  # 무방향 그래프라면 필요, 방향 그래프라면 제거
+
+    # 2. 샘플링
+    whole = np.arange(num_nodes)
+    res = np.zeros((num_nodes, 1+n), dtype=int) # pos 1개 + neg n개 
+
+    for i in range(num_nodes): # 각 anchor 노드 i 
+        neighs = neighbors[i]  # i의 이웃 노드들 
+        if len(neighs) > 0:
+            pos = np.random.choice(neighs)  # positive = 이웃 중 하나
+        else:
+            pos = i                         # 이웃 없으면 자기 자신이 positive 
+        res[i, 0] = pos
+
+        # negatives = 비이웃 중 n개
+        non_neighs = np.setdiff1d(whole, np.array(neighs + [i]))
+        if len(non_neighs) >= n:
+            negs = np.random.choice(non_neighs, n, replace=False)
+        else:
+            negs = np.random.choice(non_neighs, n, replace=True)  # 부족하면 중복 허용
+        res[i, 1:1+n] = negs # [num nodes, 1 + negative num] 
+
+    return torch.tensor(res, dtype=torch.long)
 
 def preprocess_dataset_w_DE(features, adjs, pretrain_method, \
                        sparse, drop_percent, negative_samples_num):
 
     aug_adjs = []
     aug_features = []
-    combinedadj, negetive_samples = [], []
+    combinedadj, negative_samples = [], []
     lbls = []
 
 
@@ -484,21 +543,15 @@ def preprocess_dataset_w_DE(features, adjs, pretrain_method, \
 
         if pretrain_method == 'splitLP':                
             negetive_sample = prompt_pretrain_sample(adj, 50)
-            negetive_samples.append(negetive_sample)
+            negative_samples.append(negetive_sample)
 
         adj = normalize_adj(adj + sp.eye(adj.shape[0]))
         # features.append(feature)
         # adjs.append(adj)
 
-        del feature, adj
-        gc.collect()
 
-    if pretrain_method == 'LP':    
-        combinedadj = combine_dataset_list_sp(adjs)
-        print('combinedadj', combinedadj.shape)
-        negetive_samples = prompt_pretrain_sample(combinedadj, negative_samples_num)
 
-    return aug_features, aug_adjs, lbls, negetive_samples, combinedadj
+    return aug_features, aug_adjs, lbls, negative_samples, combinedadj
 
 def preprocess_dataset(pretrain_loaders, pretrain_method, \
                        cache_dir, pretrain_dataset_names, target_graph_id, \
@@ -722,9 +775,9 @@ def combine_dataset_list_sp(args):
             zeroadj1 = sp.csr_matrix((num_rows1, num_cols2))  
             zeroadj2 = sp.csr_matrix((num_rows2, num_cols1)) 
             
-            top = sp.hstack([adj1, zeroadj1])
-            bottom = sp.hstack([zeroadj2, adj])
-            adj1 = sp.vstack([top, bottom])
+            top = sp.hstack([adj1, zeroadj1]) # [ adj1 | 0 ]
+            bottom = sp.hstack([zeroadj2, adj]) # [ 0    | adj ]
+            adj1 = sp.vstack([top, bottom]) # 위아래 합치기
     
     return adj1.tocsr()
 

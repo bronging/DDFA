@@ -16,7 +16,7 @@ class GraphCL(nn.Module):
 
     def forward(self, gcn, seq1, seq2, seq3, seq4, adj, aug_adj1, aug_adj2, sparse, msk, samp_bias1, samp_bias2,
                 aug_type, prompt_layers = None, st_validation='origin'):
-        if st_validation != 'origin': 
+        if st_validation != 'origin': # corr 면
             #print('seq1', seq1.shape)
             #print('adj', adj.shape)
             h_0 = gcn(seq1, adj, sparse)

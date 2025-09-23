@@ -14,6 +14,7 @@ import torch.nn.functional as F
 # import dgl.function as fn
 
 from torch_scatter import scatter_mean
+import ot 
 
 def split_features_by_frequency(seq_tensor, adj, top_k_low_freq=0.5):
     """
@@ -36,6 +37,7 @@ def split_features_by_frequency(seq_tensor, adj, top_k_low_freq=0.5):
     # 2. 각 피처 차원의 총 변화량(total variation)을 계산
     # 모든 엣지에 걸친 절댓값 차이의 합
     # variances = torch.sum(torch.abs(feat_diff), dim=0)
+
 
 
     # 2. 분산이 낮은 순서대로 피처 차원 인덱스를 정렬
@@ -86,12 +88,434 @@ def get_high_pass_filter(X, edge_index):
     I = torch.eye(num_nodes, device=X.device)
     return (I-A_hat)
 
+def wasserstein_distance(Z, bary_Y, reg=1e-1):
+    """
+    Z: [n_i, d] (source domain representation)
+    bary_Y: [N, d] (barycenter support)
+    """
+    n, d = Z.shape
+    N = bary_Y.shape[0]
+
+    # uniform weights
+    a = torch.ones(n, device=Z.device) / n
+    b = torch.ones(N, device=Z.device) / N
+
+    # cost matrix (Euclidean distances)
+    C = torch.cdist(Z, bary_Y, p=2)  # [n, N]
+    C = C / (C.max() + 1e-9)
+
+    # convert to numpy for POT
+    a_np, b_np, C_np = a.cpu().numpy(), b.cpu().numpy(), C.detach().cpu().numpy()
+
+    # Sinkhorn distance
+    G = ot.sinkhorn(a_np, b_np, C_np, reg)  # transport plan
+    W1 = torch.sum(torch.tensor(G, device=Z.device) * C)
+
+    return W1
+
+class PrePromptMLPW1Bary(nn.Module):
+    def __init__(self, n_in, n_h, activation, num_pretrain_dataset_num, num_layers_num, 
+        dropout, type_, backbone = 'gcn', alpha=1.0, ablation='all', scaling_factor=1.8, 
+        n_sample=183, if_rand=False, de_loss=1.0, de_weight=False, n_mlp_layer=1, sampling='random', de_input='x', shared=False):
+        super(PrePromptMLPW1Bary, self).__init__()
+        self.lp = Lp(n_in, n_h)
+        self.graphcledge = GraphCL(n_in, n_h, activation)
+        self.read = AvgReadout()
+        self.prompttype = type_
+        
+        self.if_rand = if_rand
+        self.sample_size = n_sample
+        self.de_loss = de_loss 
+        self.de_input = de_input 
+
+        self.sampling = sampling 
+        self.samplers = [Sampler(sample_size=n_sample, if_rand=if_rand, sampling=sampling) for _ in range(num_pretrain_dataset_num)]
+
+        self.feature_MLP_layers = nn.ModuleList(
+            [FeatureMLP(in_dim=n_in, hidden_dim=n_in, out_dim=n_in, num_layer=n_mlp_layer, init_identity=False) 
+                for _ in range(num_pretrain_dataset_num)])
+
+        # self.balancetoken_layers = nn.ModuleList([textprompt(n_sample*2, type_) for _ in range(num_pretrain_dataset_num)])
+        self.balancetoken_layers = nn.ModuleList([balanceprompt(n_sample, type_) for _ in range(num_pretrain_dataset_num)])
+        
+        self.shared = shared
+        self.shared_token = textprompt(n_in, type_)
+
+        self.gcn = GcnLayers_PyG(n_in, n_h, num_layers_num, dropout)
+        self.combine = alpha
+        self.loss = nn.BCEWithLogitsLoss()
+        self.ablation_choice = ablation
+        self.de_weight = de_weight
+
+    def get_reduction(self, seq_list, adj_list, aggregated_feat):
+        xt_list = []
+        for mlp_layer, bal_layer, seq, adj, sampler, agg_feat in \
+            zip(self.feature_MLP_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
+            # if self.de_input == 'ax': 
+                # sample = sampler(agg_feat, adj[0])
+            # elif self.de_input == 'x': 
+                # sample = sampler(seq[0], adj[0])
+            sample = sampler(seq[0], adj[0])
+            xt = mlp_layer(sample) # [sample size, unify dim]
+            xt_list.append(xt)
+        return xt_list  
+    
+    def get_sample_embed(self, seq_list, adj_list, aggregated_feat, sparse = False, msk = None, samp_bias1 = None, samp_bias2 = None):
+        emb_list = []
+
+        for mlp_layer, bal_layer, seq, adj, sampler, agg_feat in \
+            zip(self.feature_MLP_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
+            seq_ = [mlp_layer(seq[i]) for i in range(len(seq))]
+            emb = self.graphcledge(self.gcn, 
+                seq_[0], seq_[1], seq_[2], seq_[3], 
+                adj[0], adj[1], adj[2], sparse, msk,
+                samp_bias1, samp_bias2, 'edge')   
+            _ = sampler(seq[0], adj[0])
+            emb_list.append(emb[sampler.get_indices(), :])
+        
+        return emb_list
+
+    def compute_prelogits_GRAPHCL(self, seq_list, adj_list,
+        sparse = False, msk = None, samp_bias1 = None, samp_bias2 = None, aggregated_feat=None):
+
+        for mlp_layer, bal_layer, seq, adj, sampler, agg_feat in \
+            zip(self.feature_MLP_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
+            
+            seq = [mlp_layer(seq[i]) for i in range(len(seq))]
+            yield self.graphcledge(self.gcn, 
+                seq[0], seq[1], seq[2], seq[3], 
+                adj[0], adj[1], adj[2], sparse, msk,
+                samp_bias1, samp_bias2, 'edge')
+            
+    def get_weights(self):
+        
+        shared_token = self.shared_token.weight.detach()
+        combines = [self.combine]
+        return self.feature_MLP_layers,  combines, shared_token
+    
+    def forward(self, seq_list, adj_list, sparse, msk, 
+        samp_bias1, samp_bias2, lbl, aggregated_feat=None, bary_Y=None):        
+        total_loss = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+
+        logits = list(self.compute_prelogits_GRAPHCL(
+            seq_list, 
+            adj_list,  
+            sparse, msk, samp_bias1, samp_bias2, 
+            aggregated_feat))
+        for i in range(len(logits)):
+            loss = self.loss(logits[i], lbl[i]) # [1, 2*nodes] => [positive, negative]
+            total_loss += loss
+
+        return total_loss
+    
+class PrePromptBarycenter(nn.Module):
+    def __init__(self, n_in, n_h, activation, num_pretrain_dataset_num, num_layers_num, 
+        dropout, type_, backbone = 'gcn', alpha=1.0, ablation='all', scaling_factor=1.8, 
+        n_sample=183, if_rand=False, de_loss=1.0, de_weight=False, n_mlp_layer=1, sampling='random', de_input='x', shared=False):
+        super(PrePromptBarycenter, self).__init__()
+        self.lp = Lp(n_in, n_h)
+        self.graphcledge = GraphCL(n_in, n_h, activation)
+        self.graphclmask = GraphCL(n_in, n_h, activation)
+        self.read = AvgReadout()
+        self.prompttype = type_
+        
+        self.if_rand = if_rand
+        self.sample_size = n_sample
+        self.de_loss = de_loss 
+
+        self.sampling = sampling 
+        self.samplers = [Sampler(sample_size=n_sample, if_rand=if_rand, sampling=sampling) for _ in range(num_pretrain_dataset_num)]
+
+        self.de_input = de_input
+
+        if self.de_input == 'concat': 
+            self.dimension_encoder_layers = nn.ModuleList([DimensionNN_FUG(n_sample*3, n_sample, n_in, nn.PReLU, layers=n_mlp_layer) 
+                                                           for _ in range(num_pretrain_dataset_num)])
+        else : # X or AX 만 사용 
+            self.dimension_encoder_layers = nn.ModuleList([DimensionNN_FUG(n_sample, n_sample//2, n_in, nn.PReLU, layers=n_mlp_layer) 
+                                                        for _ in range(num_pretrain_dataset_num)])
+
+        # self.balancetoken_layers = nn.ModuleList([textprompt(n_sample*2, type_) for _ in range(num_pretrain_dataset_num)])
+        self.balancetoken_layers = nn.ModuleList([balanceprompt(n_sample, type_) for _ in range(num_pretrain_dataset_num)])
+        
+        # self.domain_token_layers = nn.ModuleList([textprompt(n_sample, type_='mul') for _ in range(num_pretrain_dataset_num)])
+        self.domain_token_layers = nn.ModuleList([textprompt(n_in, type_='add') for _ in range(num_pretrain_dataset_num)])
+
+        self.shared = shared
+        self.shared_token = textprompt(n_in, type_)
+
+
+        self.gcn = GcnLayers_PyG(n_in, n_h, num_layers_num, dropout)
+        self.combine = alpha
+        self.loss = nn.BCEWithLogitsLoss()
+        self.ablation_choice = ablation
+        self.de_weight = de_weight
+
+    def get_reduction(self, seq_list, adj_list, aggregated_feat):
+        xt_list = []
+        for dim_pretext, bal_layer, seq, adj, sampler, agg_feat, in \
+            zip(self.dimension_encoder_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat,):
+           
+            if self.de_input == 'x': 
+                sample = sampler(seq, adj)
+            elif self.de_input == 'ax': 
+                sample = sampler(agg_feat, adj)   
+            elif self.de_input == 'concat': 
+                high_X = get_high_pass_filter(seq, adj) @ seq
+                low_X = get_low_pass_filter(seq, adj) @ seq
+
+                sample_I = sampler(seq, adj)
+                sample_L = sampler(low_X, adj)
+                sample_H = sampler(high_X, adj)
+
+                sample = torch.cat([sample_I, sample_L, sample_H], dim=0)
+                sample = bal_layer(sample.T).T
+
+
+            # sample = domain_token(sample.T).T
+            dimension_sig = dim_pretext(sample)
+
+            xt = dim_pretext.feature_sig_propagate(sample, dimension_sig)
+            if self.shared: 
+                xt = self.shared_token(xt)
+            
+            # xt = domain_token(xt)
+
+            xt_list.append(xt)
+
+        return xt_list  
+    
+    def get_emb(self, seq_list, adj_list, aggregated_feat):
+        xt_list = []
+        for dim_pretext, bal_layer, seq, adj, sampler, agg_feat in \
+            zip(self.dimension_encoder_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
+           
+            if self.de_input == 'x': 
+                sample = sampler(seq, adj)
+            elif self.de_input == 'ax': 
+                sample = sampler(agg_feat, adj)   
+            elif self.de_input == 'concat': 
+                high_X = get_high_pass_filter(seq, adj) @ seq
+                low_X = get_low_pass_filter(seq, adj) @ seq
+
+                sample_I = sampler(seq, adj)
+                sample_L = sampler(low_X, adj)
+                sample_H = sampler(high_X, adj)
+
+                sample = torch.cat([sample_I, sample_L, sample_H], dim=0)
+                sample = bal_layer(sample.T).T
+
+                sample = torch.cat([sample_I, sample_L, sample_H], dim=0)
+                sample = bal_layer(sample.T).T
+
+            # sample = domain_token(sample.T).T
+            dimension_sig = dim_pretext(sample)
+
+            seq = dim_pretext.feature_sig_propagate(seq, dimension_sig)
+            if self.shared: 
+                seq = self.shared_token(seq)
+            emb = self.lp(gcn=self.gcn, seq=seq, adj=adj, sparse=True)
+
+            xt_list.append(sampler(emb, adj))
+
+        return xt_list  
+    
+    def get_sample_embed(self, seq_list, adj_list, aggregated_feat, sparse = False, msk = None, samp_bias1 = None, samp_bias2 = None):
+        emb_list = []
+
+        for dim_pretext, bal_layer, seq, adj, sampler, agg_feat in \
+            zip(self.dimension_encoder_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
+
+            if self.de_input == 'x': 
+                sample = sampler(seq[0], adj[0])
+            elif self.de_input == 'ax': 
+                sample = sampler(agg_feat, adj[0])   
+            elif self.de_input == 'concat': 
+                high_X = get_high_pass_filter(seq[0], adj[0]) @ seq[0]
+                low_X = get_low_pass_filter(seq[0], adj[0]) @ seq[0]
+
+                sample_I = sampler(seq[0], adj[0])
+                sample_L = sampler(low_X, adj[0])
+                sample_H = sampler(high_X, adj[0])
+
+                sample = torch.cat([sample_I, sample_L, sample_H], dim=0)
+                sample = bal_layer(sample.T).T
+
+            dimension_sig = dim_pretext(sample)
+
+           
+            seq_ = [dim_pretext.feature_sig_propagate(seq[i], dimension_sig) for i in range(len(seq))]
+
+            if self.shared: 
+                xt = self.shared_token(xt)
+
+            emb = self.graphcledge(self.gcn, 
+                seq_[0], seq_[1], seq_[2], seq_[3], 
+                adj[0], adj[1], adj[2], sparse, msk,
+                samp_bias1, samp_bias2, 'edge')   
+            idxx = sampler.get_indices()
+            emb_list.append(emb[idxx, :])
+        
+        return emb_list
+
+    def compute_prelogits_GRAPHCL(self, seq_list, adj_list,
+        sparse = False, msk = None, samp_bias1 = None, samp_bias2 = None, aggregated_feat=None):
+
+        for dim_pretext, bal_layer, seq, adj, sampler, agg_feat in \
+            zip(self.dimension_encoder_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
+           
+            if self.de_input == 'x': 
+                sample = sampler(seq[0], adj[0])
+            elif self.de_input == 'ax': 
+                sample = sampler(agg_feat, adj[0])   
+            elif self.de_input == 'concat': 
+                high_X = get_high_pass_filter(seq[0], adj[0]) @ seq[0]
+                low_X = get_low_pass_filter(seq[0], adj[0]) @ seq[0]
+
+                sample_I = sampler(seq[0], adj[0])
+                sample_L = sampler(low_X, adj[0])
+                sample_H = sampler(high_X, adj[0])
+
+                sample = torch.cat([sample_I, sample_L, sample_H], dim=0)
+                sample = bal_layer(sample.T).T
+
+            dimension_sig = dim_pretext(sample)
+    
+            
+            seq = [dim_pretext.feature_sig_propagate(seq[i], dimension_sig) for i in range(len(seq))]
+            if self.shared: 
+                # seq = [F.relu(seq[i]) for i in range(len(seq))] # activation 
+                seq = [self.shared_token(seq[i]) for i in range(len(seq))]# shared token 
+
+            yield self.graphcledge(self.gcn, 
+                seq[0], seq[1], seq[2], seq[3], 
+                adj[0], adj[1], adj[2], sparse, msk,
+                samp_bias1, samp_bias2, 'edge')
+    
+    def compute_prelogits_LP(self, seq_list, adj_list, sparse = False, aggregated_feat=None ):
+        for dim_pretext, bal_layer, seq, adj, sampler, agg_feat, in \
+            zip(self.dimension_encoder_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat, ):
+            if self.de_input == 'x': 
+                sample = sampler(seq, adj)
+            elif self.de_input == 'ax': 
+                sample = sampler(agg_feat, adj)   
+            elif self.de_input == 'concat': 
+                high_X = get_high_pass_filter(seq, adj) @ seq
+                low_X = get_low_pass_filter(seq, adj) @ seq
+
+                sample_I = sampler(seq, adj)
+                sample_L = sampler(low_X, adj)
+                sample_H = sampler(high_X, adj)
+
+                sample = torch.cat([sample_I, sample_L, sample_H], dim=0)
+                sample = bal_layer(sample.T).T
+
+            # sample = domain_token(sample.T).T
+
+            dimension_sig = dim_pretext(sample)
+
+            # XT
+            preseq = dim_pretext.feature_sig_propagate(seq, dimension_sig)
+            # AXT
+            # preseq2 = dim_pretext.feature_sig_propagate(agg_feat, dimension_sig)
+
+            # preseq = preseq + preseq2
+
+            # domain token 
+            # preseq = domain_token(preseq)
+
+            if self.shared: 
+                # seq = [F.relu(seq[i]) for i in range(len(seq))] # activation 
+                preseq = self.shared_token(preseq) # shared token 
+
+            yield self.lp(gcn=self.gcn, seq=preseq, adj=adj, sparse=sparse) 
+
+    def get_weights(self):
+        # domain_tokens = [layer.weight.detach() for layer in self.domain_token_layers]
+        shared_token = self.shared_token.weight.detach()
+        combines = [self.combine]
+        return self.dimension_encoder_layers,  combines, shared_token#, domain_tokens
+    
+    def forward(self, seq_list, adj_list, sparse, msk, 
+        samp_bias1, samp_bias2, lbl, aggregated_feat=None, bary_Y=None, samples=None):
+        total_loss = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+
+        if samples == None:         
+            logits = list(self.compute_prelogits_GRAPHCL(
+                seq_list, 
+                adj_list,  
+                sparse, msk, samp_bias1, samp_bias2, 
+                aggregated_feat))
+            for i in range(len(logits)):
+                loss = self.loss(logits[i], lbl[i]) # [1, 2*nodes] => [positive, negative]
+                total_loss += loss
+                
+
+            de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+
+            basis_mean = []
+
+            for idx, dim_pretext in enumerate(self.dimension_encoder_layers): 
+                de += dim_pretext.dimensional_loss()
+                basis_mean.append(dim_pretext.mean_basis_vector())
+            basis_mean_loss = torch.stack(basis_mean).mean(dim=0).pow(2).mean()
+            total_loss = total_loss + self.de_loss * (de + basis_mean_loss) 
+            
+        else: 
+            logits = list(self.compute_prelogits_LP(
+                seq_list, 
+                adj_list, 
+                sparse, 
+                aggregated_feat))
+            # losses = []
+            if type(samples) == list:
+                samples = [torch.tensor(sample, dtype=torch.int64).to(seq_list[0].device)
+                    for sample in samples] 
+                for i in range(len(logits)):    
+                    loss = compareloss(logits[i], samples[i], temperature=1)
+                    # losses.append(loss)
+                    total_loss += loss
+                # total_loss = sum(losses) / len(losses)
+            else:
+                samples = torch.tensor(samples, dtype=torch.int64).to(seq_list[0].device)
+                logits = torch.cat(logits, dim=0)
+                total_loss = compareloss(logits, samples, temperature=1)
+
+            de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+            basis_mean = []
+
+            for idx, dim_pretext in enumerate(self.dimension_encoder_layers): 
+                de += dim_pretext.dimensional_loss()
+                basis_mean.append(dim_pretext.mean_basis_vector())
+            # basis_mean_loss = torch.stack(basis_mean).mean(dim=0).pow(2).mean()
+
+            B = torch.stack(basis_mean, dim=0)  # [m, d]
+            # B = F.normalize(B, p=2, dim=1) # 길이 정규화 
+            G = torch.matmul(B, B.T)  # Gram matrix # [m, m]
+            I = torch.eye(G.size(0), device=G.device) # Identity
+            basis_ortho_loss = (G - I).pow(2).mean() # 직교성 loss: Gram이 Identity에 가까워지도록
+            # total_loss = total_loss + self.de_loss * (de + basis_ortho_loss) 
+            if self.ablation_choice == 'None': 
+                total_loss = total_loss + self.de_loss * (10*de + basis_ortho_loss) 
+            elif self.ablation_choice == 'wode': 
+                total_loss = total_loss + self.de_loss * (10*de) 
+            elif self.ablation_choice == 'wobasis': 
+                total_loss = total_loss + self.de_loss * (basis_ortho_loss) 
+
+            # total_loss = total_loss + self.de_loss * (de + 10*basis_mean_loss) 
+            # total_loss = total_loss + self.de_loss * (basis_mean_loss) 
+            # total_loss = total_loss #+ self.de_loss * (de) 
+        # print(f'total: {total_loss}, de: {de}, basis: {basis_ortho_loss}')
+        return total_loss
+    
+
 class FilterbankFUG(nn.Module):
     def __init__(self, in_dim, hid_dim, activation, num_pretrain_dataset, gcn_layers, 
         dropout, type_,  alpha=1.0, ablation='all', 
         n_sample=183, if_rand=False, sampling='random', 
         de_loss=1.0,  de_layers=1,  de_input='x', shared=False):
         super(FilterbankFUG, self).__init__()
+        self.lp = Lp(in_dim, hid_dim)
         self.graphcledge = GraphCL(in_dim, hid_dim, activation)
         self.gcn = GcnLayers_PyG(in_dim, hid_dim, gcn_layers, dropout)
         self.loss = nn.BCEWithLogitsLoss()
@@ -175,6 +599,7 @@ class FilterbankFUG(nn.Module):
             # emb_final = w[0]*H_low + w[1]*H_high + w[2]*H_identity
             # yield emb_final 
 
+            # 피처 가중합 
             H_identity = torch.stack(H_identity, dim=0)
             H_low = torch.stack(H_low, dim=0)
             H_high = torch.stack(H_high, dim=0)
@@ -192,38 +617,144 @@ class FilterbankFUG(nn.Module):
                                     seq[0], seq[1], seq[2], seq[3], 
                                     adj[0], adj[1], adj[2], sparse, msk,
                                     samp_bias1, samp_bias2, 'edge')
-            
 
+    def compute_prelogits_LP(self,seq_list, adj_list,
+        sparse = False,  aggregated_feat=None):
+
+        if aggregated_feat is None: 
+            aggregated_feat = [None for _ in range(len(self.high_dimension_encoder))]
+
+        for high_de, low_de, identity_de, weight, sampler, seq, adj in \
+            zip(self.high_dimension_encoder, self.low_dimension_encoder, self.identity_dimension_encoder, self.weights, self.samplers, seq_list, adj_list):
+            
+            # X = AX
+            low_seq = get_low_pass_filter(seq, adj) @ seq 
+            # X = (I-A)X
+            high_seq = get_high_pass_filter(seq, adj) @ seq
+
+            # identity 
+            identity_sample = sampler(seq, adj)
+            low_sample = sampler(low_seq, adj)
+            high_sample = sampler(high_seq, adj)
+
+            identity_basis = identity_de(identity_sample)
+            low_basis = low_de(low_sample)
+            # low_basis = self.shared_low_dimension_encoder(low_sample)
+            high_basis = high_de(high_sample)
+            
+            H_identity = F.normalize(seq @ identity_basis)
+            # H_low = F.normalize(seq @ low_basis)
+            # H_high = F.normalize(seq @ high_basis)
+            H_low = F.normalize(low_seq @ low_basis)
+            H_high = F.normalize(high_seq @ high_basis)
+
+            # 피처 가중합 
+            w = F.softmax(weight, dim=0)
+            seq = w[0]*H_low + w[1]*H_high + w[2]*H_identity
+
+            # 7. shared token 
+            if self.shared: 
+                seq = self.shared_token(seq)# shared token 
+
+            yield self.lp(gcn=self.gcn, seq=seq, adj=adj, sparse=sparse)
+         
 
     def get_weights(self):
         combines = [self.combine]
         shared_token = self.shared_token.weight.detach()
         return self.high_dimension_encoder, self.shared_low_dimension_encoder, self.identity_dimension_encoder, combines, shared_token
     
+    def get_reduction(self, seq_list, adj_list, aggregated_feat):
+        xt_list = []
+        
+        for high_de, low_de, identity_de, weight, sampler, seq, adj in \
+            zip(self.high_dimension_encoder, self.low_dimension_encoder, self.identity_dimension_encoder, self.weights, self.samplers, seq_list, adj_list):
+            
+            # X = AX
+            low_seq = get_low_pass_filter(seq, adj) @ seq 
+            # X = (I-A)X
+            high_seq = get_high_pass_filter(seq, adj) @ seq
+
+            # identity 
+            identity_sample = sampler(seq, adj)
+            low_sample = sampler(low_seq, adj)
+            high_sample = sampler(high_seq, adj)
+
+
+            identity_basis = identity_de(identity_sample)
+            low_basis = low_de(low_sample)
+            # low_basis = self.shared_low_dimension_encoder(low_sample)
+            high_basis = high_de(high_sample)
+            
+            H_identity = F.normalize(identity_sample@ identity_basis)
+            H_low = F.normalize(low_sample @ low_basis)
+            H_high = F.normalize(high_sample @ high_basis)
+            
+
+            # 가중합 
+            w = F.softmax(weight, dim=0)
+            seq = w[0]*H_low + w[1]*H_high + w[2]*H_identity
+            # print(seq.shape)
+            xt_list.append(seq)
+
+        return xt_list  
+    
     def forward(self, seq_list, adj_list, sparse, msk, 
-        samp_bias1, samp_bias2, lbl,  aggregated_feat=None):        
+        samp_bias1, samp_bias2, lbl,  aggregated_feat=None, samples=None):        
         total_loss = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
         
-        logits = list(self.compute_prelogits_GRAPHCL(
-            seq_list, 
-            adj_list,  
-            sparse, msk, samp_bias1, samp_bias2, 
-            aggregated_feat))
-        
-        for i in range(len(logits)):
-            loss = self.loss(logits[i], lbl[i]) # [1, 2*nodes] => [positive, negative]
-            total_loss += loss
-        
-        l_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
-        h_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
-        i_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+        if samples is None: 
+            logits = list(self.compute_prelogits_GRAPHCL(
+                seq_list, 
+                adj_list,  
+                sparse, msk, samp_bias1, samp_bias2, 
+                aggregated_feat))
+            
+            for i in range(len(logits)):
+                loss = self.loss(logits[i], lbl[i]) # [1, 2*nodes] => [positive, negative]
+                total_loss += loss
+            
+            l_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+            h_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+            i_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
 
-        for idx in range(len(self.high_dimension_encoder)): 
-            # l_de += self.low_dimension_encoder[idx].dimensional_loss()
-            h_de += self.high_dimension_encoder[idx].dimensional_loss()
-            i_de += self.identity_dimension_encoder[idx].dimensional_loss()
+            for idx in range(len(self.high_dimension_encoder)): 
+                # l_de += self.low_dimension_encoder[idx].dimensional_loss()
+                h_de += self.high_dimension_encoder[idx].dimensional_loss()
+                i_de += self.identity_dimension_encoder[idx].dimensional_loss()
 
-        total_loss = total_loss + self.de_loss * (l_de + h_de + i_de)
+            total_loss = total_loss + self.de_loss * (l_de + h_de + i_de)
+
+        else: 
+            logits = list(self.compute_prelogits_LP(
+                seq_list, 
+                adj_list, 
+                sparse, 
+                aggregated_feat))
+            # losses = []
+            if type(samples) == list:
+                samples = [torch.tensor(sample, dtype=torch.int64).to(seq_list[0].device)
+                    for sample in samples] 
+                for i in range(len(logits)):    
+                    loss = compareloss(logits[i], samples[i], temperature=1)
+                    # losses.append(loss)
+                    total_loss += loss
+                # total_loss = sum(losses) / len(losses)
+            else:
+                samples = torch.tensor(samples, dtype=torch.int64).to(seq_list[0].device)
+                logits = torch.cat(logits, dim=0)
+                total_loss = compareloss(logits, samples, temperature=1)
+
+            l_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+            h_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+            i_de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+
+            for idx in range(len(self.high_dimension_encoder)): 
+                l_de += self.low_dimension_encoder[idx].dimensional_loss()
+                h_de += self.high_dimension_encoder[idx].dimensional_loss()
+                i_de += self.identity_dimension_encoder[idx].dimensional_loss()
+
+            total_loss = total_loss + self.de_loss * (l_de + h_de + i_de)
 
         return total_loss
     
@@ -260,9 +791,16 @@ class PrePromptFilterFUG(nn.Module):
         else: 
             dim_in = n_sample
         
+        self.domain_token_layers = nn.ModuleList([textprompt(n_sample, type_='mul') for _ in range(num_pretrain_dataset_num)])
+        self.high_shared_token = textprompt(n_in//2, type_='mul')
+
         self.low_dimension_encoder = DimensionNN_FUG(dim_in, dim_in//2, n_in//2, nn.PReLU, layers=n_mlp_layer)
         self.high_dimension_encoder = nn.ModuleList([DimensionNN_FUG(dim_in, dim_in//2, n_in//2, nn.PReLU, layers=n_mlp_layer) 
                                                         for _ in range(num_pretrain_dataset_num)])
+
+        # self.low_dimension_encoder = DimensionNN_FUG(dim_in, dim_in//2, n_in, nn.PReLU, layers=n_mlp_layer)
+        # self.high_dimension_encoder = nn.ModuleList([DimensionNN_FUG(dim_in, dim_in//2, n_in, nn.PReLU, layers=n_mlp_layer) 
+        #                                                 for _ in range(num_pretrain_dataset_num)])
         
         self.balancetoken_layers = nn.ModuleList([balanceprompt(n_in, type_) for _ in range(num_pretrain_dataset_num)])
 
@@ -278,6 +816,35 @@ class PrePromptFilterFUG(nn.Module):
             sample = torch.cat([sample_X, sample_AX], dim=0)
             sample = bal_layer(sample.T).T
         return sample 
+    
+    def get_reduction(self, seq_list, adj_list, aggregated_feat):
+        xt_list = []
+        for bal_layer, seq, adj, sampler, agg_feat in \
+            zip( self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
+           
+            if self.de_input == 'x': 
+                sample = sampler(seq[0], adj[0])
+            elif self.de_input == 'ax': 
+                sample = sampler(agg_feat, adj[0])   
+            elif self.de_input == 'concat': 
+                high_X = get_high_pass_filter(seq[0], adj[0]) @ seq[0]
+                low_X = get_low_pass_filter(seq[0], adj[0]) @ seq[0]
+
+                sample_I = sampler(seq[0], adj[0])
+                sample_L = sampler(low_X, adj[0])
+                sample_H = sampler(high_X, adj[0])
+
+                sample = torch.cat([sample_I, sample_L, sample_H], dim=0)
+                sample = bal_layer(sample.T).T
+
+            dimension_sig = self.low_dimension_encoder(sample)
+
+            xt = self.low_dimension_encoder.feature_sig_propagate(sample, dimension_sig)
+            if self.shared: 
+                xt = self.shared_token(xt)
+            xt_list.append(xt)
+
+        return xt_list  
     
     def compute_prelogits_GRAPHCL(self,seq_list, adj_list,
         sparse = False, msk = None, samp_bias1 = None, samp_bias2 = None, aggregated_feat=None):
@@ -326,6 +893,57 @@ class PrePromptFilterFUG(nn.Module):
                                     seq[0], seq[1], seq[2], seq[3], 
                                     adj[0], adj[1], adj[2], sparse, msk,
                                     samp_bias1, samp_bias2, 'edge')
+    
+    def compute_prelogits_LP(self,seq_list, adj_list, sparse = False, aggregated_feat=None):
+
+        str_prelogits =  None 
+        if aggregated_feat is None: 
+            aggregated_feat = [None for _ in range(len(self.high_dimension_encoder))]
+
+        for domain_encoder, bal_layer, seq, adj, sampler, agg_feat, domain_token in \
+            zip(self.high_dimension_encoder, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat, self.domain_token_layers):
+            
+            # 1. 피처 분류 
+            if self.de_input == 'x': 
+                low_freq_indices, high_freq_indices = split_features_by_frequency(seq, adj) 
+            elif self.de_input == 'ax':
+                low_freq_indices, high_freq_indices = split_features_by_frequency(agg_feat, adj) 
+            elif self.de_input == 'concat': 
+                low_idx_x, high_idx_x = split_features_by_frequency(seq, adj) 
+                low_idx_ax, high_idx_ax = split_features_by_frequency(agg_feat, adj) 
+            
+            # 2. 샘플링 
+            sample = self.get_sample(sampler, bal_layer, seq, adj, agg_feat)
+            
+            # token 추가 
+            low_sample = domain_token(sample[:, low_freq_indices].T).T  #[N, d//2]
+            # print(low_sample.shape)
+
+            # 3. 저주파 DE 
+            
+            t_low = self.low_dimension_encoder(low_sample) # [d//2, k//2]
+            H_low = self.low_dimension_encoder.feature_sig_propagate(seq[:, low_freq_indices], t_low) # [N, k//2] 
+
+            # 4. 고주파 DE 
+            t_high = domain_encoder(sample[:, high_freq_indices]) # [d//2, k//2]
+            H_high = domain_encoder.feature_sig_propagate(seq[:, high_freq_indices], t_high) # [N, k//2]
+
+            # print(H_high.shape)
+            # Token 추가 ! 
+            # H_high = self.high_shared_token(H_high) # [N, k//2]
+
+            # 5. low DE, high DE concat 
+            preseq = torch.cat([H_low, H_high], dim=1) # [4, N, K]
+
+            # 6. balance token 
+            # seq = [bal_layer(seq[i]) for i in range(len(seq))]
+            # sample = bal_layer(sample.T).T
+
+            # 7. shared token 
+            if self.shared: 
+                preseq = [self.shared_token(seq[i]) for i in range(len(seq))]# shared token 
+
+            yield self.lp(gcn=self.gcn, seq=preseq, adj=adj, sparse=sparse) 
 
     def embed(self, seq, adj, sparse, msk, LP):
         h_1 = self.gcn(seq, adj, sparse, LP)
@@ -333,37 +951,74 @@ class PrePromptFilterFUG(nn.Module):
 
         return h_1.detach(), c.detach()
 
+    def get_de_forward(self,seq_list, adj_list, sparse = False, aggregated_feat=None):
+        logits = list(self.compute_prelogits_LP(
+                seq_list, 
+                adj_list, 
+                sparse, 
+                aggregated_feat))
+        
     def get_weights(self):
         balance_layers = [layer.weight.detach() for layer in self.balancetoken_layers]
         combines = [self.combine]
         shared_token = self.shared_token.weight.detach()
-        return self.high_dimension_encoder, self.low_dimension_encoder, balance_layers, combines, shared_token
+        
+        high_domain_token = [layer.weight.detach() for layer in self.domain_token_layers]
+        shared_token = self.high_shared_token.weight.detach()
+
+        return self.high_dimension_encoder, self.low_dimension_encoder, high_domain_token, combines, shared_token
     
     def forward(self, seq_list, adj_list, sparse, msk, 
-        samp_bias1, samp_bias2, lbl,  aggregated_feat=None):        
+        samp_bias1, samp_bias2, lbl,  aggregated_feat=None, samples=None):        
         total_loss = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
         
-        logits = list(self.compute_prelogits_GRAPHCL(
-            seq_list, 
-            adj_list,  
-            sparse, msk, samp_bias1, samp_bias2, 
-            aggregated_feat))
-        
-        for i in range(len(logits)):
-            loss = self.loss(logits[i], lbl[i]) # [1, 2*nodes] => [positive, negative]
-            total_loss += loss
+        if samples == None: 
+            logits = list(self.compute_prelogits_GRAPHCL(
+                seq_list, 
+                adj_list,  
+                sparse, msk, samp_bias1, samp_bias2, 
+                aggregated_feat))
+            
+            for i in range(len(logits)):
+                loss = self.loss(logits[i], lbl[i]) # [1, 2*nodes] => [positive, negative]
+                total_loss += loss
 
-        
-        basis_mean = []
-        de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+            
+            basis_mean = []
+            de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
 
-        for idx, dim_pretext in enumerate(self.high_dimension_encoder): 
-            de += dim_pretext.dimensional_loss()
-            basis_mean.append(dim_pretext.mean_basis_vector())
-        basis_mean_loss = torch.stack(basis_mean).mean(dim=0).pow(2).mean()
+            for idx, dim_pretext in enumerate(self.high_dimension_encoder): 
+                de += dim_pretext.dimensional_loss()
+                basis_mean.append(dim_pretext.mean_basis_vector())
+            basis_mean_loss = torch.stack(basis_mean).mean(dim=0).pow(2).mean()
 
-        total_loss = total_loss + self.de_loss * (de +  basis_mean_loss + self.low_dimension_encoder.dimensional_loss() )
+            total_loss = total_loss + self.de_loss * (de +  basis_mean_loss + self.low_dimension_encoder.dimensional_loss() )
+        else: 
+            logits = list(self.compute_prelogits_LP(
+                seq_list, 
+                adj_list, 
+                sparse, 
+                aggregated_feat))
+            if type(samples) == list:
+                samples = [torch.tensor(sample, dtype=torch.int64).to(seq_list[0].device)
+                    for sample in samples] 
+                for i in range(len(logits)):    
+                    loss = compareloss(logits[i], samples[i], temperature=1)
+                    total_loss += loss
+            else:
+                # samples = torch.tensor(samples, dtype=torch.int64).to(seq_list[0].device)
+                logits = torch.cat(logits, dim=0)
+                total_loss = compareloss(logits, samples, temperature=1)
 
+            de = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
+            basis_mean = []
+
+            for idx, dim_pretext in enumerate(self.high_dimension_encoder): 
+                de += dim_pretext.dimensional_loss()
+                basis_mean.append(dim_pretext.mean_basis_vector())
+
+            basis_mean_loss = torch.stack(basis_mean).mean(dim=0).pow(2).mean()
+            total_loss = total_loss + self.de_loss * (de + basis_mean_loss) 
         return total_loss
     
 class PrePromptSharedFUG(nn.Module):
@@ -428,14 +1083,12 @@ class PrePromptSharedFUG(nn.Module):
 
         for dim_pretext, bal_layer, seq, adj, sampler, agg_feat in \
             zip(dimension_encoder_layers, self.balancetoken_layers, seq_list, adj_list, self.samplers, aggregated_feat):
-            
            
             if self.ablation_choice == 'None':
                 sample = self.get_sample(sampler, bal_layer, seq, adj, agg_feat)
                 dimension_sig = dim_pretext(sample)
                 
                 seq = [dim_pretext.feature_sig_propagate(seq[i], dimension_sig) for i in range(len(seq))]
-
 
                 agg_feat = dim_pretext.feature_sig_propagate(agg_feat, dimension_sig)
 
@@ -493,7 +1146,7 @@ class PrePromptSharedFUG(nn.Module):
 
         return total_loss
     
-
+from train import aggregate_features 
 class PrePromptACL(nn.Module):
     def __init__(self, n_in, n_h, num_pretrain_dataset_num, num_layers_num, 
                 dropout, type_, temp, moving_average_decay=1.0, num_MLP=1,
@@ -865,7 +1518,7 @@ class PrePromptFUG(nn.Module):
         return emb 
     
     def forward(self, seq_list, adj_list, sparse, msk, 
-        samp_bias1, samp_bias2, lbl, samples = None, aggregated_feat=None):        
+        samp_bias1, samp_bias2, lbl, aggregated_feat=None):        
         total_loss = torch.tensor(0.0, dtype=torch.float32).to(seq_list[0].device)
         loss_list = []
         de_list = []
@@ -1076,6 +1729,8 @@ class PrePrompt(nn.Module):
                 nn.ModuleList(copy.deepcopy(str_prompt))
                 for _ in range(num_pretrain_dataset_num)])
 
+        self.samplers = [Sampler(sample_size=256, if_rand=False, sampling='random') for _ in range(num_pretrain_dataset_num)]
+
         self.combine = alpha
 
         self.loss = nn.BCEWithLogitsLoss()
@@ -1128,6 +1783,8 @@ class PrePrompt(nn.Module):
                     adj[0], adj[1], adj[2], sparse, msk,
                     samp_bias1, samp_bias2, aug_type='edge')
 
+                yield fea_prelogits
+
                 str_prelogits = self.graphcledge(self.gcn, 
                     seq[0], seq[1], seq[2], seq[3], 
                     adj[0], adj[1], adj[2], sparse, msk,
@@ -1179,24 +1836,27 @@ class PrePrompt(nn.Module):
                 adj_list,  
                 sparse, msk, samp_bias1, samp_bias2))
             for i in range(len(logits)):
-                #print(f'lbl[i]: {lbl[i].size()}\n {lbl[i]}')
+                # print(f'lbl[i]: {lbl[i].size()}\n {lbl[i]}')
                 loss = self.loss(logits[i], lbl[i]) # [1, 2*nodes] => [positive, negative]
                 total_loss += loss
         else:
-            logits = list(self.compute_prelogits_LP(
+            logits = list(self.compute_prelogits_LP( # 노드별 임베딩 출력 
                 self.feature_prompt_layers, 
                 self.structure_prompt_layers,
                 seq_list, 
                 adj_list, 
                 sparse))
             if type(samples) == list:
-                samples = [torch.tensor(sample, dtype=torch.int64).to(seq_list[0].device)
-                    for sample in samples] 
-                for i in range(len(logits)):    
+                print(f'samples: list')
+                # 도메인별 샘플들 -> tensor 형태로 변형 
+                # samples = [torch.tensor(sample, dtype=torch.int64).to(seq_list[0].device)
+                #     for sample in samples] 
+                for i in range(len(logits)):  # 각 도메인별로   
                     loss = compareloss(logits[i], samples[i], temperature=1)
                     total_loss += loss
             else:
-                samples = torch.tensor(samples, dtype=torch.int64).to(seq_list[0].device)
+                # samples = torch.tensor(samples, dtype=torch.int64).to(seq_list[0].device)
+                samples = samples.to(seq_list[0].device)
                 logits = torch.cat(logits, dim=0)
                 total_loss = compareloss(logits, samples, temperature=1)
 
@@ -1252,23 +1912,58 @@ def mygather(feature, index):
     res = torch.gather(feature, dim=0, index=index)
     return res.reshape(input_size,-1,feature.size(1))
 
-def compareloss(feature,tuples,temperature):
-    h_tuples=mygather(feature,tuples)
+def compareloss(feature,tuples,temperature): #  InfoNCE
+    # feature : node embeddings (1 source domain)
+    # tuples : negative samples 
+    # temperature: softmax scaling parameter 
+
+    # print(f'feature: {feature.shape}') # [num nodes, hid dim]
+    # print(f'tuples: {tuples.shape}')   # [num nodes, 1 + neg num=41]
+
+    h_tuples=mygather(feature,tuples) # 각 anchor에 대응하는 sample embedding 추출 (각 sample(index)에 대응하는 feature 가져옴)
     temp = torch.arange(0, len(tuples)).to(feature.device)
     temp = temp.reshape(-1, 1)
     temp = torch.broadcast_to(temp, (temp.size(0), tuples.size(1)))
-    h_i = mygather(feature, temp)
+    h_i = mygather(feature, temp) # anchor embedding 
 
-    sim = F.cosine_similarity(h_i, h_tuples, dim=2)
+    sim = F.cosine_similarity(h_i, h_tuples, dim=2) # anchor - tuple 간 유사도 계산 
     exp = torch.exp(sim) / temperature
     exp = exp.permute(1, 0)
-    numerator = exp[0].reshape(-1, 1)
-    denominator = exp[1:exp.size(0)]
+    numerator = exp[0].reshape(-1, 1)  # positive score (tuple 중 첫번째가 pos)
+    denominator = exp[1:exp.size(0)]  # 나머지는 negative samples - negative score
     denominator = denominator.permute(1, 0)
-    denominator = denominator.sum(dim=1, keepdim=True)
+    denominator = denominator.sum(dim=1, keepdim=True) # 모든 negative score 합 
 
-    res = -1 * torch.log(numerator / denominator)
+    res = -1 * torch.log(numerator / denominator) # - log (exp(pos) / exp(neg))
     return res.mean()
+
+# def compareloss(features, tuples, temperature=1.0):
+#     """
+#     Contrastive loss (InfoNCE style)
+#     features: [N, d] node embeddings
+#     tuples: [batch, k] index tensor (tuples[:,0] = positive, rest = negatives)
+#     """
+
+#     # (1) gather embeddings: [batch, k, d]
+#     h_tuples = features[tuples]  
+    
+#     # (2) anchor = 각 row의 첫 index (anchor)
+#     anchors = features[tuples[:, 0]]   # [batch, d]
+#     anchors = anchors.unsqueeze(1).expand_as(h_tuples)  # [batch, k, d]
+
+#     # (3) cosine similarity: [batch, k]
+#     sim = F.cosine_similarity(anchors, h_tuples, dim=-1)
+
+#     # (4) temperature scaling + softmax denominator
+#     exp_sim = torch.exp(sim / temperature)
+
+#     # (5) numerator = 첫 번째(positive), denominator = 전체 합
+#     numerator = exp_sim[:, 0]
+#     denominator = exp_sim.sum(dim=1)
+
+#     # (6) InfoNCE loss
+#     loss = -torch.log(numerator / denominator)
+#     return loss.mean()
 
 def prompt_pretrain_sample(adj,n):
     nodenum=adj.shape[0]
@@ -1288,6 +1983,7 @@ def prompt_pretrain_sample(adj,n):
             res[i][0]=nonzero_index_i_row[0]
         res[i][1:1+n]=zero_index_i_row[0:n]
     return torch.tensor(res.astype(int) )
+
 
 def sliced_wasserstein_torch(X, Y, n_proj=100):
         d = X.shape[1]

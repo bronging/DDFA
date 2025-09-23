@@ -1,0 +1,15 @@
+name: MDGPT
+channels:
+  - defaults
+dependencies:
+  - python=3.9.19
+  - torchaudio
+  - pytorch-cuda=12.1
+  - pytorch
+  - torchvision
+  - tqdm
+  - scikit-learn
+  - scipy
+  - pandas
+  - matplotlib
+prefix: /home/dahyun/miniconda3/envs/MDGPT

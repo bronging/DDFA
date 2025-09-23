@@ -23,7 +23,7 @@ class Lp(nn.Module):
 
 
     def forward(self,gcn,seq,adj,sparse,prompt_layers=None):
-        ret = gcn(seq,adj,sparse,True,prompt_layers)
+        ret = gcn(x=seq, edge_index=adj, sparse=sparse, LP=True, prompt_layers=prompt_layers)
         # ret = h_1
         # ret = h_1 * self.prompt
         # print("ret1",ret)

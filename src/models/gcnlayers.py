@@ -5,6 +5,7 @@ from layers import GCN, Encoder
 from layers.prompt import *
 
 from torch_geometric.nn import GCNConv
+from torch.nn.utils import spectral_norm
 
 class Gcn_PyG(nn.Module):
     def __init__(self, in_ft, out_ft, bias=True):
@@ -31,7 +32,7 @@ class GcnLayers_PyG(nn.Module):
 
     def forward(self, x, edge_index, sparse=True, prompt_layers=None, LP=False, ):
         # x: [N, d], edge_index: [2, num_edges]
-        xs = []
+        # xs = []
         for i in range(self.num_layers_num):
             res = x  # for residual
             x = self.convs[i](x, edge_index)
@@ -46,7 +47,7 @@ class GcnLayers_PyG(nn.Module):
             x = self.bns[i](x)
             x = self.dropout(x)
 
-            xs.append(x)
+            # xs.append(x)
 
         return x.unsqueeze(0)  # [1, N, d]
     
@@ -163,12 +164,15 @@ class GcnLayers(torch.nn.Module):
                 graph_output = prompt_layers[i](graph_output)
             # print("graphout1",graph_output)
             # print("graphout1",graph_output.shape)
-            if LP:
+            # if LP:
                 # print('LP !')
                 # print("graphout1",graph_output.shape)
-                graph_output = self.bns[i](graph_output)
+                # graph_output = self.bns[i](graph_output)
                 # print("graphout2",graph_output.shape)
-                graph_output = self.dropout(graph_output)
+                # graph_output = self.dropout(graph_output)
+            graph_output = self.bns[i](graph_output)
+                # print("graphout2",graph_output.shape)
+            graph_output = self.dropout(graph_output)
             # print("graphout2",graph_output)
             # print("graphout2",graph_output.shape)
             xs.append(graph_output)

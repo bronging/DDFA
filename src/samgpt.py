@@ -487,6 +487,7 @@ parser.add_argument('--layers_num', type=int, default=3, help='layers_num')
 parser.add_argument('--backbone', type=str, default='gcn', help='backbone')
 
 parser.add_argument('--st_validation', type=str, default='origin', help='backbone')
+parser.add_argument('--exp', type=str, default='origin', help='backbone')
 args = parser.parse_args()
 import warnings
 warnings.filterwarnings("ignore")
@@ -557,7 +558,7 @@ num_pretrain_dataset_num = len(pretrain_dataset_names)
 num_pretrain_dataset_num = len(pretrain_dataset_names) + len(args.graphId) - 1
 pretrain_loaders = [DataLoader(load_dataset(dataset)) for dataset in pretrain_dataset_names]
 unify_dim = args.unify_dim
-logfile = os.path.join(current_dir, 'log.txt')
+logfile = os.path.join(current_dir, f'{args.exp}_log.txt')
 save_dir = os.path.join(parent_directory, 'checkpoints')
 result_dir = os.path.join(parent_directory, 'result')
 cache_dir = os.path.join(parent_directory, 'cache')
@@ -567,7 +568,7 @@ os.makedirs(cache_dir, exist_ok=True)
 graphids = ''
 for id in args.graphId:
     graphids += str(id) + '_'
-set_name = f'model_{args.downstream_task}_{args.pretrain_method}_{pretrain_dataset_str}_{args.alpha}_{args.beta}_{args.ablation_pre}_{args.ablation_down}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
+set_name = f'{args.exp}_model_{args.downstream_task}_{args.pretrain_method}_{pretrain_dataset_str}_{args.alpha}_{args.beta}_{args.ablation_pre}_{args.ablation_down}_{args.unify_dim}_{args.hid_units}_{args.lr}_{args.backbone}'
 save_name = os.path.join(save_dir, f'{set_name}.pkl')
 csv_name = os.path.join(result_dir, f'{set_name}.csv')
 logging.basicConfig(format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s',
@@ -707,6 +708,7 @@ for data in downstream_loader:
     features = torch.FloatTensor(pca_compression(features,k=unify_dim)).cuda()
     adj = process.normalize_adj(adj + sp.eye(adj.shape[0]))
     idx_test = range(int(data.y.shape[0] - test_idx_num), data.y.shape[0])
+    # idx_test = range(0, test_idx_num)
     labels = data.y
     data=np.array(data.y)
     np.unique(data)
@@ -751,6 +753,7 @@ for downstreamlr in downstreamlrlist:
         best_t = 0
         print("shotnum",shotnum)
         for i in tqdm(range(100)):
+            model.eval()
             fea_pretext_weights, str_pretext_weights, combines = model.get_weights()
 
             combines.append(args.beta)
