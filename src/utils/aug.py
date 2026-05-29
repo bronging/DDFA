@@ -1,10 +1,12 @@
-import torch
 import copy
 import random
-import pdb
-import scipy.sparse as sp
-import numpy as np
 
+import numpy as np
+import scipy.sparse as sp
+import torch
+from torch_geometric.utils import add_self_loops, coalesce, dropout_edge
+
+from utils import process
 
 def aug_random_mask(input_feature, drop_percent=0.2):
     
@@ -18,14 +20,14 @@ def aug_random_mask(input_feature, drop_percent=0.2):
         aug_feature[0][j] = zeros
     return aug_feature
 
-# 메모리 부족해서 수정 
+# Modified due to memory constraints
 def aug_random_edge(input_adj, drop_percent=0.2):
     percent = drop_percent / 2
 
     row_idx, col_idx = input_adj.nonzero()
     index_list = list(zip(row_idx.tolist(), col_idx.tolist()))
 
-    # 중복 제거 (무방향 그래프 기준)
+    # Deduplicate edges (treating graph as undirected)
     processed_edges = set()
     single_index_list = []
     for i in index_list:
@@ -37,7 +39,7 @@ def aug_random_edge(input_adj, drop_percent=0.2):
     edge_num = len(single_index_list)
     add_drop_num = int(edge_num * percent)
 
-    # dense matrix는 메모리 낭비. sparse로 바로 조작
+    # Avoid dense matrix to save memory; manipulate directly in sparse format
     aug_adj = input_adj.tolil(copy=True)
 
     # Drop edges
@@ -175,7 +177,6 @@ def delete_row_col(input_matrix, drop_list, only_row=False):
 
     return out
 
-from utils import process
 
 def build_aug(adj, feature, sparse, drop_percent):
     
@@ -200,9 +201,10 @@ def build_aug(adj, feature, sparse, drop_percent):
     lbl_1 = torch.ones(1, nb_nodes)
     lbl_2 = torch.zeros(1, nb_nodes)
     lbl = torch.cat((lbl_1, lbl_2), dim=1)#.squeeze(0)
+
     return torch.stack([feature, shuf_fts, feature.detach(), feature.detach()]), torch.stack([adj, aug_adj1edge, aug_adj2edge]), lbl
 
-from torch_geometric.utils import dropout_edge, add_self_loops, coalesce
+
 def build_aug_pyg(x, edge_index, drop_percent):
     num_nodes = x.size(0)
 
@@ -210,7 +212,7 @@ def build_aug_pyg(x, edge_index, drop_percent):
     edge_index1, _ = dropout_edge(edge_index, p=drop_percent)
     edge_index2, _ = dropout_edge(edge_index, p=drop_percent)
 
-    # Self-loop 추가 + 정렬 (coalesce) ← ✅ GCNConv 안전 처리
+    # Add self-loops + sort indices (coalesce) for safe GCNConv processing
     edge_index0, _ = add_self_loops(edge_index, num_nodes=num_nodes)
     edge_index1, _ = add_self_loops(edge_index1, num_nodes=num_nodes)
     edge_index2, _ = add_self_loops(edge_index2, num_nodes=num_nodes)

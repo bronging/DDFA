@@ -1,15 +1,16 @@
-import torch
-# import matplotlib.pyplot as plt
-from torch_geometric.datasets import WebKB, Planetoid, Amazon, Coauthor, WikipediaNetwork, Reddit, \
-    Flickr, PPI, Yelp, Twitch, Actor, KarateClub, FacebookPagePage, LastFMAsia
- #BitcoinOTC 
-
-from torch_geometric.utils import degree
-# from ogb.nodeproppred import PygNodePropPredDataset
-#from ogb.lsc import MAG240MDataset
-from torch_geometric.utils import to_networkx, degree
 import networkx as nx
 import numpy as np
+import torch
+from torch_geometric.datasets import (
+    Actor, Amazon, Coauthor, FacebookPagePage, Flickr,
+    KarateClub, LastFMAsia, Planetoid, PPI, Reddit,
+    Twitch, WebKB, WikipediaNetwork, Yelp,  #BitcoinOTC 
+)
+from torch_geometric.utils import degree, to_networkx
+
+# import matplotlib.pyplot as plt
+# from ogb.nodeproppred import PygNodePropPredDataset
+# from ogb.lsc import MAG240MDataset
 
 WebKB_datasets = ['Texas', 'Cornell', 'Wisconsin']
 Planetoid_datasets = ['Cora', 'Citeseer', 'Pubmed']
@@ -109,14 +110,7 @@ def analyze_dataset(name, graph = False):
 
     percentile_90_shortest_path_length = np.percentile(path_lengths, 90)
     print(f'90th Percentile Shortest Path Length: {percentile_90_shortest_path_length:.4f}')
-    # if graph:
-    #     plt.figure()
-    #     plt.hist(deg.cpu().numpy(), bins=range(int(deg.min()), int(deg.max()) + 1), edgecolor='gray')
-    #     plt.title(f"Degree Distribution of {name}")
-    #     plt.xlabel("Degree")
-    #     plt.ylabel("Frequency")
-    #     plt.show()
-    
+
 
 def analyze_dataset_multi(name, graph = False):
     data_ = load_dataset(name)
@@ -125,13 +119,6 @@ def analyze_dataset_multi(name, graph = False):
         deg = degree(data.edge_index[0], data.num_nodes)
         average_degree = deg.mean().item()
         print(f'{name}_{i+1}: avg_degree:{average_degree:.4f}, num_nodes:{data.num_nodes}, num_edges:{data.num_edges}, num_classes:{data_.num_classes}, num_features:{data_.num_features}')
-        # if graph:
-        #     plt.figure()
-        #     plt.hist(deg.cpu().numpy(), bins=range(int(deg.min()), int(deg.max()) + 1), edgecolor='gray')
-        #     plt.title(f"Degree Distribution of {name}")
-        #     plt.xlabel("Degree")
-        #     plt.ylabel("Frequency")
-        #     plt.show()
 
 if __name__ == '__main__':
     selected_datasets = [#'Texas', 'Cornell', 'Wisconsin', 

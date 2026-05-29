@@ -1,11 +1,13 @@
 import os
-import torch
 import random
-from torch_geometric.datasets import Twitch,Flickr,FacebookPagePage,Coauthor
+
+import numpy as np
+import scipy.sparse as sp
+import torch
+from torch_geometric.datasets import Coauthor, FacebookPagePage, Flickr, Twitch
+
 from dataset import *
 from process import *
-import scipy.sparse as sp
-import numpy as np
 
 def save_sample(data, path):
     os.makedirs(path, exist_ok=True)
@@ -14,13 +16,18 @@ def save_sample(data, path):
     if 'batch' in data:
         torch.save(data['batch'], os.path.join(path, 'batch.pt'))
 
-def generate_fewshot_samples(labels, num_shots, num_samples):
+def generate_fewshot_samples(labels, num_shots, num_samples, exclude_last=1000):
     fewshot_samples = []
     unique_labels = torch.unique(labels)
+
+    N = labels.shape[0]
+    candidate_indices = torch.arange(0, N - exclude_last)  # exclude the last 'exclude_last' nodes from candidates
+    candidate_labels = labels[candidate_indices]
+
     for _ in range(num_samples):
         samples = []
         for label in unique_labels:
-            label_indices = (labels == label).nonzero(as_tuple=True)[0]
+            label_indices = (candidate_labels == label).nonzero(as_tuple=True)[0]
             if len(label_indices) < num_shots:
                 continue 
             selected_indices = random.sample(label_indices.tolist(), num_shots)
@@ -36,7 +43,7 @@ def create_folders(base_path, dataset_name, num_shots=10, num_samples=100):
         for i in range(1, num_samples + 1):
             os.makedirs(os.path.join(base_path, f'{shot}-shot_{dataset_name.lower()}', str(i)), exist_ok=True)
 
-def save_fewshot_data(dataset_name, num_shots=10, num_samples=100, path = './data'):
+def save_fewshot_data(dataset_name, num_shots=10, num_samples=100, path = './data', exclude_last=1000):
     print(f'Generating node_data for {dataset_name}')
     dataset = load_dataset(dataset_name, path)
     data = dataset[0]
@@ -46,7 +53,7 @@ def save_fewshot_data(dataset_name, num_shots=10, num_samples=100, path = './dat
     create_folders(base_path, dataset_name, num_shots, num_samples)
 
     for shot in range(1, num_shots + 1):
-        samples = generate_fewshot_samples(labels, shot, num_samples)
+        samples = generate_fewshot_samples(labels, shot, num_samples, exclude_last=exclude_last)
         for i, sample in enumerate(samples):
             sample_path = os.path.join(base_path, f'{shot}-shot_{dataset_name.lower()}', str(i))
             save_sample(sample, sample_path)
@@ -84,9 +91,10 @@ def save_fewshot_graph_data(dataset_name, num_shots=10, num_samples=100):
             save_sample(sample, sample_path)
 
 if __name__ == '__main__':
-    # datasets =   ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia',]
-    datasets = ['Texas', 'Cornell', 'Wisconsin', 'chameleon', 'squirrel']
+    datasets =   ['Cora', 'Citeseer', 'Pubmed', 'Photo', 'Computers', 'FacebookPagePage', 'LastFMAsia',]
+    # datasets = ['Texas', 'Cornell', 'Wisconsin', 'chameleon', 'squirrel']
     # datasets = ['Reddit']
+    # datasets = ['Citeseer']
     for dataset_name in datasets:
-        save_fewshot_data(dataset_name)
+        save_fewshot_data(dataset_name, exclude_last=1000)
         save_fewshot_graph_data(dataset_name)
